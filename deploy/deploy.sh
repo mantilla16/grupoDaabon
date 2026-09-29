@@ -33,8 +33,11 @@ npm ci --include=dev
 echo "▸ build producción con APP_BASE=/estructuradaabon/"
 APP_BASE=/estructuradaabon/ npm run build
 
-echo "▸ asegurar carpeta data-db"
-mkdir -p data-db
+echo "▸ asegurar carpeta data-db con permisos www-data"
+sudo mkdir -p data-db
+# El service corre como www-data. Si data-db pertenece a otro usuario
+# (por ejemplo al que hizo git clone), el server crashea con SQLITE_CANTOPEN.
+sudo chown -R www-data:www-data data-db
 
 if sudo systemctl is-active --quiet "$SERVICE"; then
   echo "▸ reiniciando servicio $SERVICE"
