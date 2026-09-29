@@ -375,6 +375,14 @@ function Inner() {
   }, [rfNodes, rf])
 
   // Zoom-in cinemático al entrar en foco, zoom-out al salir.
+  // OJO con las deps: NO ponemos `rfNodes` aquí. rfNodes cambia cada vez que
+  // el usuario clickea un nodo (selectedId está en su memo). Si estuviera en
+  // las deps, cada click dispararía el setCenter aunque no hubiera cambio de
+  // foco, sintiéndose como "el grafo se mueve solo al clickear una casilla".
+  // Leemos rfNodes vía ref para tener la versión más fresca sin re-disparar.
+  const rfNodesRef = useRef(rfNodes)
+  useEffect(() => { rfNodesRef.current = rfNodes }, [rfNodes])
+
   const firstFocusRun = useRef(true)
   useEffect(() => {
     if (firstFocusRun.current) { firstFocusRun.current = false; return }
@@ -394,7 +402,7 @@ function Inner() {
       } else {
         // Salida del foco: no fit-all (achicaría todo). Volvemos al centroide
         // con zoom 0.9, igual que la vista inicial.
-        const positions = rfNodes.map((n) => n.position)
+        const positions = rfNodesRef.current.map((n) => n.position)
         const xs = positions.map((p) => p.x)
         const ys = positions.map((p) => p.y)
         const cx = (Math.min(...xs) + Math.max(...xs)) / 2 + 110
@@ -403,7 +411,7 @@ function Inner() {
       }
     }, 60)
     return () => window.clearTimeout(t)
-  }, [focusSets, rf, rfNodes])
+  }, [focusSets, rf])
 
   // Handlers
   const handleFocus = (id: number) => {
@@ -594,8 +602,10 @@ function Inner() {
             data={data}
             selectedId={selectedId}
             onSelect={(id) => {
+              // Click en la lista = solo seleccionar (para ver el detalle en el
+              // panel derecho). Si el usuario quiere zoom sobre la cadena,
+              // usa el botón "Enfocar" (o doble-click en el grafo).
               setSelectedId(id)
-              if (view === 'graph') rf.fitView({ nodes: [{ id: String(id) }], duration: 400, minZoom: 0.6, maxZoom: 1.4 })
             }}
             onAddCompany={handleAddCompany}
             onFocus={handleFocus}
@@ -731,8 +741,9 @@ function Inner() {
               data={data}
               selectedId={selectedId}
               onSelect={(id) => {
+                // Click en un dueño/participada del detalle = solo seleccionar.
+                // Sin zoom automático (evita saltos visuales inesperados).
                 setSelectedId(id)
-                if (view === 'graph') rf.fitView({ nodes: [{ id: String(id) }], duration: 400, minZoom: 0.6, maxZoom: 1.4 })
               }}
               onFocus={handleFocus}
               onEditCompany={handleEditCompany}
