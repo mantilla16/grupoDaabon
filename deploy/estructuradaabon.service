@@ -1,0 +1,36 @@
+; systemd unit for the estructura-daabon Node server.
+; Copy to /etc/systemd/system/estructuradaabon.service then:
+;   sudo systemctl daemon-reload
+;   sudo systemctl enable --now estructuradaabon
+;   sudo systemctl status estructuradaabon
+;
+; Ajustar User, WorkingDirectory y ExecStart al usuario / ruta reales de tu VPS.
+
+[Unit]
+Description=Estructura Grupo Daabon (SQLite + React)
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/estructuradaabon
+Environment=NODE_ENV=production
+Environment=APP_BASE=/estructuradaabon/
+ExecStart=/usr/bin/node server/index.mjs
+Restart=on-failure
+RestartSec=3s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=estructuradaabon
+
+; Endurecimiento razonable
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/estructuradaabon/data-db
+
+[Install]
+WantedBy=multi-user.target

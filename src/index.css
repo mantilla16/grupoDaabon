@@ -1,0 +1,92 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400..600&display=swap');
+
+/* ==========================================================================
+   Ledger — sistema visual para la estructura del Grupo Daabon
+   Neutros gráfito, una sola marca (burdeos RB), números en mono tabular.
+   ========================================================================== */
+:root {
+  --bg: #F3F3F1;
+  --bg-2: #ECECE9;
+  --surface: #FFFFFF;
+  --surface-2: #FAFAF9;
+  --sunk: #F0F0ED;
+
+  --ink: #121214;
+  --ink-2: #36363B;
+  --ink-3: #66666E;
+  --ink-4: #8E8E95;
+  --ink-5: #B9B9BD;
+
+  --hair: #E6E6E2;
+  --rule: #D9D9D4;
+  --rule-2: #C4C4BE;
+
+  --brand: #7A1F32;
+  --brand-2: #942840;
+  --brand-soft: #F5E8EB;
+  --brand-ink: #FFFFFF;
+
+  --ok: #1F5E4A;
+  --ok-soft: #E3F0EA;
+  --warn: #9A6A22;
+  --warn-soft: #F6EEDD;
+  --danger: #A12828;
+  --danger-soft: #F8E6E6;
+
+  --sh-1: 0 1px 0 rgba(18, 18, 20, 0.04), 0 1px 2px rgba(18, 18, 20, 0.06);
+  --sh-2: 0 1px 2px rgba(18, 18, 20, 0.05), 0 6px 16px -4px rgba(18, 18, 20, 0.10);
+  --sh-3: 0 2px 6px rgba(18, 18, 20, 0.06), 0 24px 48px -12px rgba(18, 18, 20, 0.22);
+  --ring: 0 0 0 3px rgba(122, 31, 50, 0.16);
+
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+
+  --f-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono: 'Geist Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-back: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --t-fast: 140ms;
+  --t-med: 260ms;
+  --t-slow: 520ms;
+
+  color-scheme: light;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--f-sans);
+  font-size: 13.5px;
+  line-height: 1.45;
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+}
+::selection { background: var(--brand); color: #fff; }
+button { font: inherit; color: inherit; cursor: pointer; border: none; background: none; padding: 0; }
+input, textarea, select { font: inherit; color: inherit; }
+input:focus, textarea:focus, select:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 4px; }
+h1, h2, h3, h4, h5 { margin: 0; font-weight: inherit; }
+p { margin: 0; }
+ul, ol { margin: 0; padding: 0; list-style: none; }
+[hidden] { display: none !important; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 10px; border: 3px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--rule-2); background-clip: padding-box; border: 3px solid transparent; }
+::-webkit-scrollbar-track { background: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
