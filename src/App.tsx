@@ -350,23 +350,28 @@ function Inner() {
   // Centro inicial cómodo: la primera vez que hay nodos en pantalla, movemos la
   // vista al centroide del grafo con zoom 0.9. Así arrancamos con nodos legibles
   // (a tamaño casi natural) y el usuario panea para explorar — como Figma.
+  //
+  // IMPORTANTE: marcamos `done = true` SÍNCRONO al detectar nodos. Si en su
+  // lugar dejáramos el flag para dentro del setTimeout, cada re-render (ej.
+  // click en un nodo → cambia selectedId → cambia rfNodes) cancelaría el timer
+  // viejo y arrancaría uno nuevo, disparando setCenter DESPUÉS del click y
+  // sintiéndose como "zoom al centro al clickear cualquier casilla".
   const initialCenterDone = useRef(false)
   useEffect(() => {
     if (initialCenterDone.current) return
     if (rfNodes.length === 0) return
-    const t = window.setTimeout(() => {
-      // Bounding box del grafo entero
-      const positions = rfNodes.map((n) => n.position)
-      const xs = positions.map((p) => p.x)
-      const ys = positions.map((p) => p.y)
-      const cx = (Math.min(...xs) + Math.max(...xs)) / 2 + 110
-      const cy = (Math.min(...ys) + Math.max(...ys)) / 2 + 50
-      // Centrar en el centroide con zoom cómodo. La API `setCenter` respeta
-      // el viewport actual y anima suavemente.
+    initialCenterDone.current = true
+    // Bounding box del grafo entero
+    const positions = rfNodes.map((n) => n.position)
+    const xs = positions.map((p) => p.x)
+    const ys = positions.map((p) => p.y)
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2 + 110
+    const cy = (Math.min(...ys) + Math.max(...ys)) / 2 + 50
+    // rAF asegura que React Flow terminó de montar antes de mover la vista
+    const raf = requestAnimationFrame(() => {
       rf.setCenter(cx, cy, { zoom: 0.9, duration: 400 })
-      initialCenterDone.current = true
-    }, 120)
-    return () => window.clearTimeout(t)
+    })
+    return () => cancelAnimationFrame(raf)
   }, [rfNodes, rf])
 
   // Zoom-in cinemático al entrar en foco, zoom-out al salir.
