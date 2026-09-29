@@ -213,13 +213,13 @@ function Inner() {
     const raw: Node[] = data.nodes.map((n) => ({
       id: String(n.id),
       type: 'company',
-      width: 240,
-      height: 96,
+      width: 190,
+      height: 82,
       // In xyflow v12 the internal edge routing needs `measured` sizes upfront
       // (nodes normally auto-measure after DOM paint, but the initial edge
       // rendering pass runs before that). Providing them here means edges
       // appear on first render instead of after a re-layout tick.
-      measured: { width: 240, height: 96 },
+      measured: { width: 190, height: 82 },
       position: { x: 0, y: 0 },
       data: {
         label: n.name,
@@ -366,12 +366,13 @@ function Inner() {
           maxZoom: 1.6,
         })
       } else {
-        // Salida del foco: zoom-out mostrando todo el grafo
+        // Salida del foco: zoom-out mostrando todo el grafo (misma cota que el
+        // fit inicial → los nodos se leen tras salir del enfoque)
         rf.fitView({
-          padding: 0.12,
+          padding: 0.08,
           duration: 1000,
-          minZoom: 0.2,
-          maxZoom: 1.2,
+          minZoom: 0.65,
+          maxZoom: 1.5,
         })
       }
     }, 60)
@@ -395,7 +396,7 @@ function Inner() {
     return () => window.removeEventListener('keydown', onKey)
   }, [editingCompany.open, editingEdge.open, drawerOpen])
 
-  const handleFit = () => rf.fitView({ padding: 0.08, duration: 600, minZoom: 0.4, maxZoom: 1.4 })
+  const handleFit = () => rf.fitView({ padding: 0.08, duration: 600, minZoom: 0.65, maxZoom: 1.5 })
 
   const handleAddCompany = () => setEditingCompany({ open: true, id: null })
   const handleEditCompany = (id: number) => setEditingCompany({ open: true, id })
@@ -613,9 +614,11 @@ function Inner() {
             onPaneClick={onPaneClick}
             onNodeDoubleClick={onNodeDoubleClick}
             fitView
-            fitViewOptions={{ padding: 0.08, minZoom: 0.4, maxZoom: 1.4 }}
+            // minZoom alto en el fit → los nodos se leen aunque el grafo sea muy
+            // ancho. El usuario paneando horizontalmente ve las cadenas laterales.
+            fitViewOptions={{ padding: 0.08, minZoom: 0.65, maxZoom: 1.5 }}
             proOptions={{ hideAttribution: true }}
-            minZoom={0.15}
+            minZoom={0.2}
             maxZoom={2.5}
           >
             <Background variant={BackgroundVariant.Dots} gap={22} size={1.1} color="#CFCFC9" />

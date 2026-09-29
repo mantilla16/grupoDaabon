@@ -1,8 +1,8 @@
 import dagre from 'dagre'
 import { Position, type Node, type Edge } from '@xyflow/react'
 
-const NODE_WIDTH = 240
-const NODE_HEIGHT = 96
+const NODE_WIDTH = 190
+const NODE_HEIGHT = 82
 
 export function layoutGraph(nodes: Node[], edges: Edge[], direction: 'TB' | 'LR' = 'TB'): Node[] {
   const g = new dagre.graphlib.Graph()
