@@ -374,23 +374,21 @@ function Inner() {
     return () => cancelAnimationFrame(raf)
   }, [rfNodes, rf])
 
-  // Zoom-in cinemático al entrar en foco, zoom-out al salir.
-  // OJO con las deps: NO ponemos `rfNodes` aquí. rfNodes cambia cada vez que
-  // el usuario clickea un nodo (selectedId está en su memo). Si estuviera en
-  // las deps, cada click dispararía el setCenter aunque no hubiera cambio de
-  // foco, sintiéndose como "el grafo se mueve solo al clickear una casilla".
-  // Leemos rfNodes vía ref para tener la versión más fresca sin re-disparar.
-  const rfNodesRef = useRef(rfNodes)
-  useEffect(() => { rfNodesRef.current = rfNodes }, [rfNodes])
-
+  // Zoom-in al entrar en foco, restauración de la vista PREVIA al salir.
+  //
+  // Estrategia: al entrar en foco guardamos el viewport actual (x, y, zoom).
+  // Al salir, restauramos exactamente ese viewport → el usuario vuelve al
+  // punto y zoom que tenía antes de enfocar, sin cálculos de centroide que
+  // caigan en lugares raros cuando el layout es asimétrico.
+  const savedViewportRef = useRef<{ x: number; y: number; zoom: number } | null>(null)
   const firstFocusRun = useRef(true)
   useEffect(() => {
     if (firstFocusRun.current) { firstFocusRun.current = false; return }
-    // Pequeño delay para que React aplique `hidden: true` en los nodos fuera del
-    // subgrafo antes de que fitView calcule el bounding box.
     const t = window.setTimeout(() => {
       if (focusSets) {
-        // Foco: fit al subgrafo con margen — zoom-in que resalta la cadena
+        // Guardamos la vista actual ANTES de mover
+        savedViewportRef.current = rf.getViewport()
+        // Zoom-in animado al subgrafo
         const ids = Array.from(focusSets.active).map((i) => ({ id: String(i) }))
         rf.fitView({
           nodes: ids,
@@ -400,14 +398,12 @@ function Inner() {
           maxZoom: 1.6,
         })
       } else {
-        // Salida del foco: no fit-all (achicaría todo). Volvemos al centroide
-        // con zoom 0.9, igual que la vista inicial.
-        const positions = rfNodesRef.current.map((n) => n.position)
-        const xs = positions.map((p) => p.x)
-        const ys = positions.map((p) => p.y)
-        const cx = (Math.min(...xs) + Math.max(...xs)) / 2 + 110
-        const cy = (Math.min(...ys) + Math.max(...ys)) / 2 + 50
-        rf.setCenter(cx, cy, { zoom: 0.9, duration: 900 })
+        // Salida del foco: restaurar la vista que había ANTES de enfocar.
+        // Nada de recomputar centroides — el estado previo es siempre correcto.
+        const prev = savedViewportRef.current
+        if (prev) {
+          rf.setViewport(prev, { duration: 900 })
+        }
       }
     }, 60)
     return () => window.clearTimeout(t)
