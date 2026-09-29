@@ -10,11 +10,13 @@ export function layoutGraph(nodes: Node[], edges: Edge[], direction: 'TB' | 'LR'
   // Extra space between ranks + siblings so percentage pills never overlap
   g.setGraph({
     rankdir: direction,
-    ranksep: direction === 'TB' ? 280 : 320,
-    nodesep: direction === 'TB' ? 180 : 140,
-    edgesep: 120,
-    marginx: 60,
-    marginy: 60,
+    // Más compacto para que el grafo llene mejor la pantalla al hacer fit.
+    // Antes: 280/180/120 → ahora 180/110/70. Reduce ~35% el bounding box total.
+    ranksep: direction === 'TB' ? 180 : 220,
+    nodesep: direction === 'TB' ? 110 : 90,
+    edgesep: 70,
+    marginx: 40,
+    marginy: 40,
   })
 
   nodes.forEach((n) => g.setNode(n.id, { width: NODE_WIDTH, height: NODE_HEIGHT }))

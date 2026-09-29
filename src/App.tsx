@@ -233,6 +233,9 @@ function Inner() {
         direction: layout,
       },
       selected: selectedId === n.id,
+      // Cuando hay foco, escondemos completamente los nodos fuera de la cadena.
+      // El fitView de abajo hace zoom sobre el subgrafo activo.
+      hidden: focusSets ? !focusSets.active.has(n.id) : false,
     }))
     const rfEdges: Edge[] = data.edges.map((e, i) => ({
       id: `e-${i}`,
@@ -303,6 +306,9 @@ function Inner() {
         target: String(e.to),
         type: 'ownership',
         zIndex: inFocus ? 5 : 0,
+        // Igual que los nodos: en modo foco las flechas fuera de la cadena
+        // desaparecen — dejamos solo el flujo que se está inspeccionando.
+        hidden: dim,
         data: {
           tier,
           weight: e.weight,
@@ -314,7 +320,7 @@ function Inner() {
           laneOffset,
           onOpen: openEdge,
         },
-        markerEnd: { type: MarkerType.ArrowClosed, color: stroke, width: 16, height: 16 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: stroke, width: 14, height: 14 },
       }
     })
   }, [data.edges, focusSets, intro, rfNodes, openEdge])
@@ -341,13 +347,35 @@ function Inner() {
     return () => window.clearTimeout(t)
   }, [layout, rf])
 
-  // Focus effect: fit to focused set
+  // Zoom-in cinemático al entrar en foco, zoom-out al salir.
+  // El primer render (sin foco todavía) no dispara la animación; solo las
+  // transiciones foco↔sin-foco lo hacen.
+  const firstFocusRun = useRef(true)
   useEffect(() => {
-    if (!focusSets) return
-    const ids = Array.from(focusSets.active).map((i) => String(i))
-    setTimeout(() => {
-      rf.fitView({ nodes: ids.map((id) => ({ id })), padding: 0.2, duration: 500 })
-    }, 100)
+    if (firstFocusRun.current) { firstFocusRun.current = false; return }
+    // Pequeño delay para que React aplique `hidden: true` en los nodos fuera del
+    // subgrafo antes de que fitView calcule el bounding box.
+    const t = window.setTimeout(() => {
+      if (focusSets) {
+        const ids = Array.from(focusSets.active).map((i) => ({ id: String(i) }))
+        rf.fitView({
+          nodes: ids,
+          padding: 0.22,
+          duration: 900,
+          minZoom: 0.4,
+          maxZoom: 1.6,
+        })
+      } else {
+        // Salida del foco: zoom-out mostrando todo el grafo
+        rf.fitView({
+          padding: 0.12,
+          duration: 1000,
+          minZoom: 0.2,
+          maxZoom: 1.2,
+        })
+      }
+    }, 60)
+    return () => window.clearTimeout(t)
   }, [focusSets, rf])
 
   // Handlers
@@ -367,7 +395,7 @@ function Inner() {
     return () => window.removeEventListener('keydown', onKey)
   }, [editingCompany.open, editingEdge.open, drawerOpen])
 
-  const handleFit = () => rf.fitView({ padding: 0.2, duration: 400 })
+  const handleFit = () => rf.fitView({ padding: 0.08, duration: 600, minZoom: 0.4, maxZoom: 1.4 })
 
   const handleAddCompany = () => setEditingCompany({ open: true, id: null })
   const handleEditCompany = (id: number) => setEditingCompany({ open: true, id })
@@ -585,10 +613,10 @@ function Inner() {
             onPaneClick={onPaneClick}
             onNodeDoubleClick={onNodeDoubleClick}
             fitView
-            fitViewOptions={{ padding: 0.2 }}
+            fitViewOptions={{ padding: 0.08, minZoom: 0.4, maxZoom: 1.4 }}
             proOptions={{ hideAttribution: true }}
-            minZoom={0.2}
-            maxZoom={2}
+            minZoom={0.15}
+            maxZoom={2.5}
           >
             <Background variant={BackgroundVariant.Dots} gap={22} size={1.1} color="#CFCFC9" />
             <MiniMap
