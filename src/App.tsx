@@ -213,13 +213,13 @@ function Inner() {
     const raw: Node[] = data.nodes.map((n) => ({
       id: String(n.id),
       type: 'company',
-      width: 190,
-      height: 82,
+      width: 220,
+      height: 100,
       // In xyflow v12 the internal edge routing needs `measured` sizes upfront
       // (nodes normally auto-measure after DOM paint, but the initial edge
       // rendering pass runs before that). Providing them here means edges
       // appear on first render instead of after a re-layout tick.
-      measured: { width: 190, height: 82 },
+      measured: { width: 220, height: 100 },
       position: { x: 0, y: 0 },
       data: {
         label: n.name,
@@ -347,9 +347,29 @@ function Inner() {
     return () => window.clearTimeout(t)
   }, [layout, rf])
 
+  // Centro inicial cómodo: la primera vez que hay nodos en pantalla, movemos la
+  // vista al centroide del grafo con zoom 0.9. Así arrancamos con nodos legibles
+  // (a tamaño casi natural) y el usuario panea para explorar — como Figma.
+  const initialCenterDone = useRef(false)
+  useEffect(() => {
+    if (initialCenterDone.current) return
+    if (rfNodes.length === 0) return
+    const t = window.setTimeout(() => {
+      // Bounding box del grafo entero
+      const positions = rfNodes.map((n) => n.position)
+      const xs = positions.map((p) => p.x)
+      const ys = positions.map((p) => p.y)
+      const cx = (Math.min(...xs) + Math.max(...xs)) / 2 + 110
+      const cy = (Math.min(...ys) + Math.max(...ys)) / 2 + 50
+      // Centrar en el centroide con zoom cómodo. La API `setCenter` respeta
+      // el viewport actual y anima suavemente.
+      rf.setCenter(cx, cy, { zoom: 0.9, duration: 400 })
+      initialCenterDone.current = true
+    }, 120)
+    return () => window.clearTimeout(t)
+  }, [rfNodes, rf])
+
   // Zoom-in cinemático al entrar en foco, zoom-out al salir.
-  // El primer render (sin foco todavía) no dispara la animación; solo las
-  // transiciones foco↔sin-foco lo hacen.
   const firstFocusRun = useRef(true)
   useEffect(() => {
     if (firstFocusRun.current) { firstFocusRun.current = false; return }
@@ -357,27 +377,28 @@ function Inner() {
     // subgrafo antes de que fitView calcule el bounding box.
     const t = window.setTimeout(() => {
       if (focusSets) {
+        // Foco: fit al subgrafo con margen — zoom-in que resalta la cadena
         const ids = Array.from(focusSets.active).map((i) => ({ id: String(i) }))
         rf.fitView({
           nodes: ids,
           padding: 0.22,
           duration: 900,
-          minZoom: 0.4,
+          minZoom: 0.7,
           maxZoom: 1.6,
         })
       } else {
-        // Salida del foco: zoom-out mostrando todo el grafo (misma cota que el
-        // fit inicial → los nodos se leen tras salir del enfoque)
-        rf.fitView({
-          padding: 0.08,
-          duration: 1000,
-          minZoom: 0.65,
-          maxZoom: 1.5,
-        })
+        // Salida del foco: no fit-all (achicaría todo). Volvemos al centroide
+        // con zoom 0.9, igual que la vista inicial.
+        const positions = rfNodes.map((n) => n.position)
+        const xs = positions.map((p) => p.x)
+        const ys = positions.map((p) => p.y)
+        const cx = (Math.min(...xs) + Math.max(...xs)) / 2 + 110
+        const cy = (Math.min(...ys) + Math.max(...ys)) / 2 + 50
+        rf.setCenter(cx, cy, { zoom: 0.9, duration: 900 })
       }
     }, 60)
     return () => window.clearTimeout(t)
-  }, [focusSets, rf])
+  }, [focusSets, rf, rfNodes])
 
   // Handlers
   const handleFocus = (id: number) => {
@@ -396,7 +417,24 @@ function Inner() {
     return () => window.removeEventListener('keydown', onKey)
   }, [editingCompany.open, editingEdge.open, drawerOpen])
 
-  const handleFit = () => rf.fitView({ padding: 0.08, duration: 600, minZoom: 0.65, maxZoom: 1.5 })
+  // Botón "Ajustar" — click una vez: fit-all real (para ver todo el bounding
+  // box, aunque los nodos queden chicos). Click de nuevo: vuelve al centro con
+  // zoom 0.9. Así el usuario alterna entre "vista completa" y "vista trabajable".
+  const fitToggleRef = useRef<'fit' | 'work'>('work')
+  const handleFit = () => {
+    if (fitToggleRef.current === 'work') {
+      rf.fitView({ padding: 0.08, duration: 600, minZoom: 0.2, maxZoom: 1.4 })
+      fitToggleRef.current = 'fit'
+    } else {
+      const positions = rfNodes.map((n) => n.position)
+      const xs = positions.map((p) => p.x)
+      const ys = positions.map((p) => p.y)
+      const cx = (Math.min(...xs) + Math.max(...xs)) / 2 + 110
+      const cy = (Math.min(...ys) + Math.max(...ys)) / 2 + 50
+      rf.setCenter(cx, cy, { zoom: 0.9, duration: 600 })
+      fitToggleRef.current = 'work'
+    }
+  }
 
   const handleAddCompany = () => setEditingCompany({ open: true, id: null })
   const handleEditCompany = (id: number) => setEditingCompany({ open: true, id })
@@ -613,10 +651,11 @@ function Inner() {
             onEdgeClick={onEdgeClick}
             onPaneClick={onPaneClick}
             onNodeDoubleClick={onNodeDoubleClick}
-            fitView
-            // minZoom alto en el fit → los nodos se leen aunque el grafo sea muy
-            // ancho. El usuario paneando horizontalmente ve las cadenas laterales.
-            fitViewOptions={{ padding: 0.08, minZoom: 0.65, maxZoom: 1.5 }}
+            // No usamos fitView — arrancamos con zoom 0.9 centrado en el grafo
+            // (ver initialCenter effect abajo). Es más legible que fit-all cuando
+            // el grafo es ancho: los nodos se leen y el usuario panea para ver el
+            // resto (como Figma / Miro).
+            defaultViewport={{ x: 0, y: 0, zoom: 0.9 }}
             proOptions={{ hideAttribution: true }}
             minZoom={0.2}
             maxZoom={2.5}

@@ -1,8 +1,8 @@
 import dagre from 'dagre'
 import { Position, type Node, type Edge } from '@xyflow/react'
 
-const NODE_WIDTH = 190
-const NODE_HEIGHT = 82
+const NODE_WIDTH = 220
+const NODE_HEIGHT = 100
 
 export function layoutGraph(nodes: Node[], edges: Edge[], direction: 'TB' | 'LR' = 'TB'): Node[] {
   const g = new dagre.graphlib.Graph()
@@ -10,11 +10,12 @@ export function layoutGraph(nodes: Node[], edges: Edge[], direction: 'TB' | 'LR'
   // Extra space between ranks + siblings so percentage pills never overlap
   g.setGraph({
     rankdir: direction,
-    // Más compacto para que el grafo llene mejor la pantalla al hacer fit.
-    // Antes: 280/180/120 → ahora 180/110/70. Reduce ~35% el bounding box total.
-    ranksep: direction === 'TB' ? 180 : 220,
-    nodesep: direction === 'TB' ? 110 : 90,
-    edgesep: 70,
+    // Espaciado equilibrado: suficiente aire para leer flechas y % sin apilarse,
+    // sin inflar el bounding box (los nodos son 220×100 así que el % relativo es
+    // similar al original con 240×96).
+    ranksep: direction === 'TB' ? 160 : 200,
+    nodesep: direction === 'TB' ? 90 : 80,
+    edgesep: 50,
     marginx: 40,
     marginy: 40,
   })
