@@ -491,16 +491,16 @@ kbd {
 
 /* ---------- Node ---------- */
 .node {
-  width: 224px;
-  height: 96px;
-  padding: 10px 12px 10px 15px;
+  width: 256px;
+  height: 108px;
+  padding: 11px 13px 11px 17px;
   background: var(--surface);
-  border-radius: 10px;
+  border-radius: 11px;
   border: 1px solid #E6E6E2;
   box-shadow: var(--sh-1);
   position: relative;
   display: flex; flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   transition: box-shadow 0.3s var(--ease-out), border-color 0.3s var(--ease-out), opacity 0.25s var(--ease-out);
   will-change: transform, opacity;
 }
@@ -531,24 +531,24 @@ kbd {
    .react-flow__viewport desde App.tsx (useOnViewportChange).                 */
 .node-top {
   display: flex; align-items: center; justify-content: space-between;
-  height: calc(19px * var(--detail, 1));
+  height: calc(21px * var(--detail, 1));
   opacity: var(--detail, 1);
   overflow: hidden;
   transition: height 0.3s var(--ease-out), opacity 0.3s var(--ease-out);
 }
 .node-type {
-  font-size: 10px; font-weight: 650; letter-spacing: 0.06em;
+  font-size: 11px; font-weight: 650; letter-spacing: 0.06em;
   color: var(--tc);
-  padding: 2px 6px;
+  padding: 2px 7px;
   border-radius: 4px;
   background: color-mix(in srgb, var(--tc) 9%, transparent);
   white-space: nowrap;
 }
-.node-deg { display: inline-flex; gap: 8px; font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-4); }
+.node-deg { display: inline-flex; gap: 8px; font-family: var(--f-mono); font-size: 11px; color: var(--ink-4); }
 .node-deg > span { display: inline-flex; align-items: center; gap: 2px; }
-.node-deg svg { width: 10px; height: 10px; }
+.node-deg svg { width: 11px; height: 11px; }
 .node-name {
-  font-size: calc(13.5px * var(--lod, 1));
+  font-size: calc(15px * var(--lod, 1));
   font-weight: 550;
   line-height: 1.22;
   letter-spacing: -0.015em;
@@ -561,10 +561,10 @@ kbd {
 .node-nit {
   margin-top: auto;
   font-family: var(--f-mono);
-  font-size: 10.5px;
+  font-size: 12px;
   color: #8E8E95;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  height: calc(15px * var(--detail, 1));
+  height: calc(17px * var(--detail, 1));
   opacity: var(--detail, 1);
   transition: height 0.3s var(--ease-out), opacity 0.3s var(--ease-out);
 }

@@ -14,8 +14,8 @@ import { Position, type Node, type Edge } from '@xyflow/react'
  *      arriba a la izquierda cuando hay parejas sueltas como Cacata → Caribbean).
  */
 
-export const NODE_WIDTH = 224
-export const NODE_HEIGHT = 96
+export const NODE_WIDTH = 256
+export const NODE_HEIGHT = 108
 
 export interface EdgeGeometry {
   points: { x: number; y: number }[]
