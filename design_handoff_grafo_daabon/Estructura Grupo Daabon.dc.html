@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400..600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#F3F3F1}
+*,*::before,*::after{box-sizing:border-box}
+button{font:inherit;color:inherit;cursor:pointer;border:none;background:none;padding:0}
+input{font:inherit;color:inherit}
+input:focus{outline:none}
+a{color:#7A1F32}
+a:hover{color:#942840}
+::selection{background:#7A1F32;color:#fff}
+@keyframes flow{to{stroke-dashoffset:-14}}
+@keyframes ping{0%{transform:scale(.5);opacity:.9}100%{transform:scale(1.8);opacity:0}}
+@keyframes pulse{0%{transform:scale(1);opacity:.55}100%{transform:scale(1.06,1.2);opacity:0}}
+@keyframes bannerIn{from{opacity:0;transform:translate(-50%,-14px) scale(.96)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+@keyframes panelIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+</style>
+</helmet>
+<div style="height:100vh;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);background:#F3F3F1;color:#121214;font-family:'Geist',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;font-size:13.5px;line-height:1.45;letter-spacing:-0.005em;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;overflow:hidden">
+
+  <header style="display:flex;align-items:center;gap:28px;padding:12px 20px 12px 18px;background:#FFFFFF;border-bottom:1px solid #E6E6E2;position:relative;z-index:20;min-height:64px;min-width:0">
+    <div style="display:flex;align-items:center;gap:12px;min-width:0;flex-shrink:1;overflow:hidden">
+      <svg viewBox="0 0 36 36" fill="none" style="width:34px;height:34px;flex-shrink:0">
+        <rect x="12" y="3" width="12" height="9" rx="2" fill="#7A1F32"></rect>
+        <path d="M18 12v6M8 18h20M8 18v5M28 18v5" stroke="#121214" stroke-width="1.6" stroke-linecap="round"></path>
+        <rect x="2.5" y="23" width="11" height="9" rx="2" stroke="#121214" stroke-width="1.6"></rect>
+        <rect x="22.5" y="23" width="11" height="9" rx="2" fill="#121214"></rect>
+      </svg>
+      <div style="display:flex;flex-direction:column;min-width:0">
+        <span style="font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:#8E8E95;font-weight:500">Papel de trabajo · Composición accionaria</span>
+        <h1 style="margin:0;font-size:17px;font-weight:400;letter-spacing:-0.02em;color:#36363B;white-space:nowrap;line-height:1.2">Estructura del <strong style="font-weight:650;color:#121214">Grupo Daabon</strong></h1>
+      </div>
+    </div>
+
+    <dl style="display:{{ statsDisplay }};margin:0;padding-left:24px;border-left:1px solid #E6E6E2;white-space:nowrap;flex-shrink:0">
+      <div style="padding-right:18px;margin-right:18px;border-right:1px solid #E6E6E2">
+        <dt style="white-space:nowrap;font-size:10.5px;color:#8E8E95;letter-spacing:0.04em;text-transform:uppercase;font-weight:500">Compañías</dt>
+        <dd style="margin:0;font-family:'Geist Mono',ui-monospace,monospace;font-size:18px;font-weight:500;letter-spacing:-0.02em;line-height:1.2">{{ stats.companies }}</dd>
+      </div>
+      <div style="padding-right:18px;margin-right:18px;border-right:1px solid #E6E6E2">
+        <dt style="white-space:nowrap;font-size:10.5px;color:#8E8E95;letter-spacing:0.04em;text-transform:uppercase;font-weight:500">Relaciones</dt>
+        <dd style="margin:0;font-family:'Geist Mono',ui-monospace,monospace;font-size:18px;font-weight:500;letter-spacing:-0.02em;line-height:1.2">{{ stats.relations }}</dd>
+      </div>
+      <div>
+        <dt style="white-space:nowrap;font-size:10.5px;color:#8E8E95;letter-spacing:0.04em;text-transform:uppercase;font-weight:500">Sin %</dt>
+        <dd style="margin:0;font-family:'Geist Mono',ui-monospace,monospace;font-size:18px;font-weight:500;letter-spacing:-0.02em;line-height:1.2;color:#7A1F32">{{ stats.missing }}</dd>
+      </div>
+    </dl>
+
+    <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0">
+      <div style="display:inline-flex;padding:3px;background:#F0F0ED;border-radius:9px;border:1px solid #E6E6E2;margin-right:6px">
+        <button style="height:28px;padding:0 12px;border-radius:6px;font-size:12.5px;font-weight:500;color:#121214;background:#FFFFFF;box-shadow:0 1px 0 rgba(18,18,20,.04),0 1px 2px rgba(18,18,20,.06),0 0 0 1px rgba(18,18,20,.04);display:inline-flex;align-items:center;gap:6px">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:14px;height:14px"><circle cx="10" cy="4.5" r="2.2"></circle><circle cx="4.5" cy="15.5" r="2.2"></circle><circle cx="15.5" cy="15.5" r="2.2"></circle><path d="M9 6.5 5.5 13.5M11 6.5l3.5 7"></path></svg>
+          Grafo
+        </button>
+        <button title="Vista de árbol (fuera del alcance de esta propuesta)" style="height:28px;padding:0 12px;border-radius:6px;font-size:12.5px;font-weight:500;color:#66666E;display:inline-flex;align-items:center;gap:6px">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:14px;height:14px"><path d="M4 4.5h12M7 10h9M10 15.5h6M4 4.5v11h3M7 10v5.5"></path></svg>
+          Árbol
+        </button>
+      </div>
+      <div style="display:flex;gap:2px">
+        <button onClick="{{ toggleDir }}" style="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-radius:8px;color:#66666E;font-size:12.5px;font-weight:500;transition:background .14s,color .14s" style-hover="background:#F0F0ED;color:#121214">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" style="width:16px;height:16px;transform:rotate({{ dirRot }}deg);transition:transform .5s cubic-bezier(.34,1.4,.64,1)"><rect x="7" y="2.5" width="6" height="4" rx="1"></rect><rect x="2.5" y="13.5" width="6" height="4" rx="1"></rect><rect x="11.5" y="13.5" width="6" height="4" rx="1"></rect><path d="M10 6.5v3.5M5.5 13.5V10h9v3.5"></path></svg>
+          <span style="display:{{ labelDisplay }}">{{ dirLabel }}</span>
+        </button>
+        <button onClick="{{ fitAll }}" style="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-radius:8px;color:#66666E;font-size:12.5px;font-weight:500;transition:background .14s,color .14s" style-hover="background:#F0F0ED;color:#121214">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" style="width:16px;height:16px"><path d="M3 7.5V3h4.5M17 7.5V3h-4.5M3 12.5V17h4.5M17 12.5V17h-4.5"></path></svg>
+          <span style="display:{{ labelDisplay }}">Ajustar</span>
+        </button>
+      </div>
+      <button style="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-radius:8px;color:#66666E;font-size:12.5px;font-weight:500;transition:background .14s,color .14s" style-hover="background:#F0F0ED;color:#121214">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" style="width:16px;height:16px"><ellipse cx="10" cy="4.5" rx="6.5" ry="2.5"></ellipse><path d="M3.5 4.5v11c0 1.4 2.9 2.5 6.5 2.5s6.5-1.1 6.5-2.5v-11M3.5 10c0 1.4 2.9 2.5 6.5 2.5s6.5-1.1 6.5-2.5"></path></svg>
+        <span style="display:{{ labelDisplay }}">Datos</span>
+      </button>
+      <span style="width:1px;height:22px;background:#E6E6E2;margin:0 6px"></span>
+      <button style="display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 13px;border-radius:8px;background:#FFFFFF;border:1px solid #D9D9D4;font-size:13px;font-weight:500;color:#121214;white-space:nowrap;box-shadow:0 1px 0 rgba(18,18,20,.04),0 1px 2px rgba(18,18,20,.06)" style-hover="border-color:#C4C4BE;background:#FAFAF9">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" style="width:15px;height:15px"><path d="M3 10h13M11.5 5.5 16 10l-4.5 4.5"></path></svg>
+        Participación
+      </button>
+      <button style="display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 13px;border-radius:8px;background:#121214;border:1px solid #121214;font-size:13px;font-weight:500;color:#fff;white-space:nowrap;box-shadow:0 1px 0 rgba(255,255,255,.12) inset,0 1px 2px rgba(18,18,20,.2)" style-hover="background:#26262A;border-color:#26262A">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" style="width:15px;height:15px"><path d="M10 4v12M4 10h12"></path></svg>
+        Compañía
+      </button>
+    </div>
+  </header>
+
+  <main style="display:grid;grid-template-columns:{{ gridCols }};min-height:0;transition:grid-template-columns .5s cubic-bezier(.16,1,.3,1)">
+
+    <button onClick="{{ openLeft }}" title="Mostrar compañías" style="display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:16px;background:#FFFFFF;color:#66666E;overflow:hidden;border-right:1px solid #E6E6E2;opacity:{{ leftRailOp }};transition:opacity .3s,color .14s" style-hover="color:#7A1F32;background:#FAFAF9">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" style="width:16px;height:16px;flex-shrink:0"><path d="M8 4l6 6-6 6"></path></svg>
+      <span style="writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;font-weight:600">Compañías</span>
+    </button>
+
+    <div style="position:relative;min-width:0;min-height:0;overflow:hidden;background:#FFFFFF;border-right:1px solid #E6E6E2">
+      <aside style="width:288px;height:100%;display:flex;flex-direction:column;padding:16px 0 0">
+        <button onClick="{{ closeLeft }}" title="Recoger panel" style="position:absolute;top:12px;right:10px;z-index:5;width:24px;height:24px;display:grid;place-items:center;border-radius:6px;color:#8E8E95" style-hover="background:#F0F0ED;color:#121214">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" style="width:14px;height:14px"><path d="M12 4l-6 6 6 6"></path></svg>
+        </button>
+        <div style="padding:0 44px 0 16px;margin-bottom:18px">
+          <label style="display:flex;align-items:center;gap:8px;height:36px;padding:0 8px 0 11px;background:#F0F0ED;border:1px solid transparent;border-radius:8px;cursor:text">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" style="width:15px;height:15px;color:#8E8E95;flex-shrink:0"><circle cx="9" cy="9" r="5.8"></circle><path d="m16.5 16.5-3.3-3.3" stroke-linecap="round"></path></svg>
+            <input ref="{{ searchRef }}" value="{{ query }}" onChange="{{ onQuery }}" placeholder="Buscar por nombre o NIT" style="flex:1;min-width:0;border:0;background:transparent;font-size:13px">
+            <kbd style="font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;padding:1px 6px;border-radius:4px;border:1px solid #D9D9D4;border-bottom-width:2px;color:#66666E;background:#FFFFFF">/</kbd>
+          </label>
+        </div>
+
+        <div style="padding:0 16px;margin-bottom:18px">
+          <h3 style="margin:0 0 10px;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;font-weight:600;color:#66666E">Tipo de entidad</h3>
+          <div style="display:flex;gap:2px;height:6px;margin-bottom:10px;border-radius:3px;overflow:hidden;background:#F0F0ED">
+            <sc-for list="{{ typeSegs }}" as="t" hint-placeholder-count="5">
+              <span style="display:block;min-width:0;flex-basis:0;flex-grow:{{ t.grow }};background:{{ t.color }};opacity:{{ t.op }};transition:opacity .25s"></span>
+            </sc-for>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px">
+            <sc-for list="{{ typePills }}" as="p" hint-placeholder-count="6">
+              <button onClick="{{ p.onClick }}" title="{{ p.title }}" style="display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:500;color:{{ p.fg }};border:1px solid {{ p.bd }};background:{{ p.bg }};transition:background .2s,color .2s,border-color .2s">
+                <span style="width:7px;height:7px;border-radius:2px;background:{{ p.dot }}"></span>
+                <span>{{ p.label }}</span>
+                <span style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;opacity:0.7">{{ p.count }}</span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="padding:0 16px;flex:1;min-height:0;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <h3 style="margin:0;display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;font-weight:600;color:#66666E">Compañías <span style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;font-weight:500;color:#121214;background:#F0F0ED;padding:1px 6px;border-radius:4px;letter-spacing:0">{{ listCount }}</span></h3>
+          </div>
+          <ul style="flex:1;min-height:0;overflow-y:auto;margin:0 -8px;padding:0 8px 16px;list-style:none">
+            <sc-for list="{{ rows }}" as="r" hint-placeholder-count="8">
+              <li onClick="{{ r.onClick }}" style="position:relative;display:flex;align-items:center;gap:10px;padding:8px 8px 8px 10px;border-radius:8px;cursor:pointer;background:{{ r.bg }};box-shadow:{{ r.sh }};transition:background .14s,box-shadow .2s" style-hover="background:#F0F0ED">
+                <span style="width:3px;height:{{ r.markH }};border-radius:2px;background:{{ r.color }};flex-shrink:0;transition:height .3s cubic-bezier(.34,1.4,.64,1)"></span>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:13px;font-weight:500;color:#121214;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-0.01em">{{ r.name }}</div>
+                  <div style="display:flex;gap:8px;font-size:11px;color:#8E8E95;margin-top:1px">
+                    <span style="font-weight:600;color:{{ r.color }}">{{ r.type }}</span>
+                    <span style="font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.nit }}</span>
+                  </div>
+                </div>
+                <button onClick="{{ r.onFocus }}" title="Enfocar en el mapa" style="width:26px;height:26px;display:grid;place-items:center;border-radius:6px;color:{{ r.focusColor }};flex-shrink:0;transition:background .14s,color .14s" style-hover="background:#7A1F32;color:#fff">
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" style="width:15px;height:15px"><circle cx="10" cy="10" r="3.2"></circle><path d="M10 2.5v2.5M10 15v2.5M2.5 10H5M15 10h2.5" stroke-linecap="round"></path></svg>
+                </button>
+              </li>
+            </sc-for>
+          </ul>
+        </div>
+      </aside>
+    </div>
+
+    <div ref="{{ canvasRef }}" onPointerDown="{{ onDown }}" onPointerMove="{{ onMove }}" onPointerUp="{{ onUp }}" onPointerCancel="{{ onUp }}" style="position:relative;min-width:0;min-height:0;overflow:hidden;background-color:#F3F3F1;cursor:grab;touch-action:none;user-select:none">
+      <div ref="{{ worldRef }}" style="position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform">
+
+        <div style="position:absolute;left:0;top:0;transform:translate({{ frame.x }}px,{{ frame.y }}px);width:{{ frame.w }}px;height:{{ frame.h }}px;border:1px dashed #C4C4BE;border-radius:18px;background:rgba(255,255,255,0.4);opacity:{{ frame.op }};transition:opacity .4s ease, transform .75s cubic-bezier(.65,0,.35,1);pointer-events:none">
+          <div style="position:absolute;left:22px;top:16px;display:flex;align-items:center;gap:8px;font-size:calc(11px * var(--plod,1));font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#66666E;white-space:nowrap">
+            Estructuras independientes
+            <span style="font-family:'Geist Mono',ui-monospace,monospace;font-weight:500;color:#121214;background:#ECECE9;padding:1px 6px;border-radius:4px;letter-spacing:0">{{ frame.count }}</span>
+          </div>
+        </div>
+
+        <svg width="1" height="1" style="position:absolute;left:0;top:0;overflow:visible">
+          <sc-for list="{{ edges }}" as="e" hint-placeholder-count="0">
+            <path data-anim="1" data-edge="1" data-rank="{{ e.rank }}" data-dash="{{ e.dashFlag }}" d="{{ e.d }}" fill="none" style="stroke:{{ e.stroke }};stroke-width:{{ e.sw }};stroke-dasharray:{{ e.dash }};opacity:{{ e.op }};stroke-linecap:round;stroke-linejoin:round;transition:opacity .25s ease, stroke-width .25s ease"></path>
+          </sc-for>
+          <sc-for list="{{ edges }}" as="e" hint-placeholder-count="0">
+            <path data-anim="1" data-arrow="1" data-rank="{{ e.rank }}" d="{{ e.arrow }}" style="fill:{{ e.stroke }};opacity:{{ e.op }};transition:opacity .25s ease"></path>
+          </sc-for>
+          <sc-for list="{{ flows }}" as="f" hint-placeholder-count="0">
+            <path data-anim="1" data-flow="1" d="{{ f.d }}" fill="none" style="stroke:{{ f.stroke }};stroke-width:calc(3.6px * var(--lod,1));stroke-dasharray:0.1 13.9;stroke-linecap:round;animation:flow .9s linear infinite;pointer-events:none"></path>
+          </sc-for>
+          <sc-for list="{{ edges }}" as="e" hint-placeholder-count="0">
+            <path data-hit="1" d="{{ e.d }}" fill="none" onMouseEnter="{{ e.enter }}" onMouseLeave="{{ e.leave }}" style="stroke:transparent;stroke-width:14px;pointer-events:{{ e.hitPe }};cursor:pointer"></path>
+          </sc-for>
+        </svg>
+
+        <sc-for list="{{ edges }}" as="e" hint-placeholder-count="0">
+          <div data-hit="1" onMouseEnter="{{ e.enter }}" onMouseLeave="{{ e.leave }}" style="position:absolute;left:0;top:0;transform:translate({{ e.lx }}px,{{ e.ly }}px) translate(-50%,-50%) scale(var(--plod,1));opacity:{{ e.pillOp }};pointer-events:{{ e.pillPe }};z-index:{{ e.z }};transition:opacity .25s ease">
+            <div data-anim="1" data-pill="1" data-rank="{{ e.rank }}" style="display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:6px;font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;font-weight:600;letter-spacing:-0.01em;white-space:nowrap;border:1px {{ e.pillBs }} {{ e.pillBd }};background:{{ e.pillBg }};color:{{ e.pillFg }};font-style:{{ e.pillFs }};box-shadow:{{ e.pillSh }};transition:box-shadow .25s ease">{{ e.label }}</div>
+          </div>
+        </sc-for>
+
+        <sc-for list="{{ nodes }}" as="n" hint-placeholder-count="0">
+          <div data-hit="1" title="{{ n.name }}" onMouseEnter="{{ n.enter }}" onMouseLeave="{{ n.leave }}" onClick="{{ n.onClick }}" onDoubleClick="{{ n.onDbl }}" style="position:absolute;left:0;top:0;width:224px;height:96px;transform:translate({{ n.x }}px,{{ n.y }}px);opacity:{{ n.op }};pointer-events:{{ n.pe }};z-index:{{ n.z }};cursor:pointer;transition:transform .75s cubic-bezier(.65,0,.35,1), opacity .35s ease">
+            <sc-if value="{{ n.sel }}" hint-placeholder-val="{{ false }}">
+              <span style="position:absolute;inset:-1px;border-radius:10px;border:1.5px solid {{ n.ring }};pointer-events:none;animation:pulse 1.8s cubic-bezier(.16,1,.3,1) infinite"></span>
+            </sc-if>
+            <div data-anim="1" data-card="1" data-rank="{{ n.rank }}" style="position:relative;width:100%;height:100%;padding:10px 12px 10px 15px;background:#FFFFFF;border-radius:10px;border:1px solid {{ n.border }};box-shadow:{{ n.shadow }};display:flex;flex-direction:column;gap:3px;overflow:hidden;transform:{{ n.lift }};transition:box-shadow .3s cubic-bezier(.16,1,.3,1), border-color .3s ease, transform .35s cubic-bezier(.16,1,.3,1)">
+              <span style="position:absolute;left:0;top:{{ n.railInset }};bottom:{{ n.railInset }};width:{{ n.railW }};border-radius:0 3px 3px 0;background:{{ n.color }};transition:top .35s cubic-bezier(.16,1,.3,1), bottom .35s cubic-bezier(.16,1,.3,1), width .35s"></span>
+              <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;height:calc(19px * var(--detail,1));opacity:var(--detail,1);overflow:hidden;transition:height .3s ease, opacity .3s ease">
+                <span style="font-size:10px;font-weight:650;letter-spacing:0.06em;color:{{ n.color }};padding:2px 6px;border-radius:4px;background:{{ n.chipBg }}">{{ n.type }}</span>
+                <span style="display:inline-flex;gap:8px;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;color:#8E8E95">
+                  <span style="display:inline-flex;align-items:center;gap:2px"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" style="width:10px;height:10px"><path d="M6 2v8M3 7l3 3 3-3"></path></svg>{{ n.inn }}</span>
+                  <span style="display:inline-flex;align-items:center;gap:2px"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" style="width:10px;height:10px"><path d="M6 10V2M3 5l3-3 3 3"></path></svg>{{ n.out }}</span>
+                </span>
+              </div>
+              <div style="font-size:calc(13.5px * var(--lod,1));font-weight:550;line-height:1.22;letter-spacing:-0.015em;color:#121214;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin:var(--nameMargin,0);transition:font-size .2s ease">{{ n.name }}</div>
+              <div style="margin-top:auto;flex-shrink:0;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;color:#8E8E95;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;height:calc(15px * var(--detail,1));opacity:var(--detail,1);transition:height .3s ease, opacity .3s ease">{{ n.nit }}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ hasFocus }}" hint-placeholder-val="{{ false }}">
+        <div data-hit="1" style="position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:10;display:flex;align-items:center;gap:12px;padding:7px 7px 7px 16px;background:#121214;color:#fff;border-radius:12px;box-shadow:0 2px 6px rgba(18,18,20,.06),0 24px 48px -12px rgba(18,18,20,.22);font-size:13px;white-space:nowrap;animation:bannerIn .5s cubic-bezier(.34,1.3,.64,1) both">
+          <span style="position:relative;width:8px;height:8px;border-radius:50%;background:#E6788F;flex-shrink:0">
+            <span style="position:absolute;inset:-4px;border-radius:50%;border:1.5px solid #E6788F;animation:ping 1.8s cubic-bezier(.16,1,.3,1) infinite"></span>
+          </span>
+          <span>Enfocado: <strong style="font-weight:600">{{ focus.name }}</strong><span style="color:rgba(255,255,255,0.55)"> · {{ focus.sub }}</span></span>
+          <button onClick="{{ clearFocus }}" style="display:inline-flex;align-items:center;gap:8px;height:28px;padding:0 6px 0 10px;border-radius:7px;background:rgba(255,255,255,0.1);font-size:12px;font-weight:500" style-hover="background:rgba(255,255,255,0.18)">
+            Limpiar
+            <kbd style="font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;padding:1px 5px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);border-bottom-width:2px;color:rgba(255,255,255,0.6)">Esc</kbd>
+          </button>
+        </div>
+      </sc-if>
+
+      <div data-hit="1" style="position:absolute;left:16px;bottom:16px;z-index:10;background:rgba(255,255,255,0.9);backdrop-filter:blur(12px) saturate(1.4);-webkit-backdrop-filter:blur(12px) saturate(1.4);border:1px solid #E6E6E2;border-radius:12px;box-shadow:0 1px 2px rgba(18,18,20,.05),0 6px 16px -4px rgba(18,18,20,.10);overflow:hidden;min-width:172px;cursor:default">
+        <button onClick="{{ toggleLegend }}" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 12px;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#66666E">
+          <span>Leyenda</span>
+          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" style="width:12px;height:12px;transform:rotate({{ legendRot }}deg);transition:transform .35s cubic-bezier(.34,1.4,.64,1)"><path d="M3 7.5 6 4.5l3 3" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+        <sc-if value="{{ legendOpen }}" hint-placeholder-val="{{ true }}">
+          <div style="animation:panelIn .35s cubic-bezier(.16,1,.3,1) both">
+            <div style="padding:2px 12px 12px">
+              <div style="font-size:10.5px;color:#8E8E95;margin-bottom:7px;font-weight:500">Tipo de entidad</div>
+              <div style="display:flex;flex-wrap:wrap;gap:4px 12px;max-width:280px">
+                <sc-for list="{{ legendTypes }}" as="t" hint-placeholder-count="5">
+                  <div title="{{ t.title }}" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:#36363B"><span style="width:9px;height:9px;border-radius:2px;background:{{ t.color }}"></span><span>{{ t.t }}</span></div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="padding:10px 12px 12px;border-top:1px solid #E6E6E2">
+              <div style="font-size:10.5px;color:#8E8E95;margin-bottom:7px;font-weight:500">Participación <span style="color:#B9B9BD">· pasa el cursor para resaltar</span></div>
+              <div style="display:grid;gap:2px">
+                <sc-for list="{{ legendTiers }}" as="t" hint-placeholder-count="4">
+                  <div onMouseEnter="{{ t.enter }}" onMouseLeave="{{ t.leave }}" style="display:grid;grid-template-columns:40px 54px 1fr;align-items:center;gap:8px;font-size:12px;color:#36363B;padding:3px 6px;margin:0 -6px;border-radius:6px;background:{{ t.bg }};transition:background .2s">
+                    <svg viewBox="0 0 40 10" width="40" height="10"><line x1="1" y1="5" x2="39" y2="5" stroke="{{ t.stroke }}" stroke-width="{{ t.w }}" stroke-dasharray="{{ t.dash }}" stroke-linecap="round"></line></svg>
+                    <span style="justify-self:start;white-space:nowrap;display:inline-flex;align-items:center;height:18px;padding:0 5px;border-radius:6px;font-family:'Geist Mono',ui-monospace,monospace;font-size:10px;font-weight:600;border:1px {{ t.bs }} {{ t.bd }};background:{{ t.bg2 }};color:{{ t.fg }};font-style:{{ t.fs }}">{{ t.sample }}</span>
+                    <span style="white-space:nowrap">{{ t.label }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+
+      <div data-hit="1" style="position:absolute;right:64px;bottom:16px;z-index:10;width:200px;height:130px;border-radius:10px;overflow:hidden;border:1px solid #E6E6E2;box-shadow:0 1px 2px rgba(18,18,20,.05),0 6px 16px -4px rgba(18,18,20,.10);background:#FFFFFF;cursor:pointer">
+        <svg onClick="{{ onMini }}" viewBox="{{ mini.vb }}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;display:block">
+          <sc-for list="{{ miniNodes }}" as="m" hint-placeholder-count="0">
+            <rect x="{{ m.x }}" y="{{ m.y }}" width="224" height="96" rx="14" fill="{{ m.color }}" opacity="{{ m.op }}"></rect>
+          </sc-for>
+          <rect ref="{{ miniViewRef }}" x="0" y="0" width="0" height="0" rx="10" fill="rgba(18,18,20,0.05)" stroke="#7A1F32" stroke-width="{{ mini.sw }}"></rect>
+        </svg>
+      </div>
+
+      <div data-hit="1" style="position:absolute;right:16px;bottom:16px;z-index:10;display:flex;flex-direction:column;border-radius:10px;overflow:hidden;border:1px solid #E6E6E2;box-shadow:0 1px 2px rgba(18,18,20,.05),0 6px 16px -4px rgba(18,18,20,.10);background:#FFFFFF">
+        <button onClick="{{ zoomIn }}" title="Acercar" style="width:32px;height:32px;display:grid;place-items:center;color:#36363B;border-bottom:1px solid #E6E6E2" style-hover="background:#F0F0ED">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" style="width:14px;height:14px"><path d="M10 4v12M4 10h12"></path></svg>
+        </button>
+        <button onClick="{{ zoomOut }}" title="Alejar" style="width:32px;height:32px;display:grid;place-items:center;color:#36363B;border-bottom:1px solid #E6E6E2" style-hover="background:#F0F0ED">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" style="width:14px;height:14px"><path d="M4 10h12"></path></svg>
+        </button>
+        <button onClick="{{ fitAll }}" title="Ajustar vista" style="width:32px;height:32px;display:grid;place-items:center;color:#36363B" style-hover="background:#F0F0ED">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" style="width:14px;height:14px"><path d="M3 7.5V3h4.5M17 7.5V3h-4.5M3 12.5V17h4.5M17 12.5V17h-4.5"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <div style="position:relative;min-width:0;min-height:0;overflow:hidden;background:#FFFFFF;border-left:1px solid #E6E6E2">
+      <aside style="width:356px;height:100%;overflow-y:auto">
+        <button onClick="{{ closeRight }}" title="Recoger panel" style="position:absolute;top:12px;right:12px;z-index:5;width:24px;height:24px;display:grid;place-items:center;border-radius:6px;color:#8E8E95" style-hover="background:#F0F0ED;color:#121214">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" style="width:14px;height:14px"><path d="M8 4l6 6-6 6"></path></svg>
+        </button>
+        <sc-if value="{{ hasSel }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:22px 20px 32px;animation:panelIn .45s cubic-bezier(.16,1,.3,1) both">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+              <span style="font-size:10.5px;font-weight:700;letter-spacing:0.06em;padding:3px 7px;border-radius:4px;color:#fff;background:{{ sel.color }}">{{ sel.type }}</span>
+              <span style="font-size:11.5px;color:#66666E">{{ sel.typeLabel }}</span>
+            </div>
+            <h2 style="margin:0;padding-right:24px;font-size:22px;font-weight:600;line-height:1.15;letter-spacing:-0.03em;text-wrap:balance">{{ sel.name }}</h2>
+            <div style="margin-top:6px;font-family:'Geist Mono',ui-monospace,monospace;font-size:12px;color:#66666E">{{ sel.nit }}</div>
+            <div style="display:flex;gap:6px;margin-top:18px">
+              <button onClick="{{ sel.onFocus }}" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:7px;height:32px;padding:0 13px;border-radius:8px;background:#121214;border:1px solid #121214;font-size:13px;font-weight:500;color:#fff" style-hover="background:#26262A">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:15px;height:15px"><circle cx="10" cy="10" r="3"></circle><path d="M10 2.5v3M10 14.5v3M2.5 10h3M14.5 10h3" stroke-linecap="round"></path></svg>
+                Enfocar cadena
+              </button>
+              <button style="display:inline-flex;align-items:center;height:32px;padding:0 13px;border-radius:8px;background:#FFFFFF;border:1px solid #D9D9D4;font-size:13px;font-weight:500;box-shadow:0 1px 0 rgba(18,18,20,.04),0 1px 2px rgba(18,18,20,.06)" style-hover="border-color:#C4C4BE;background:#FAFAF9">Editar</button>
+              <button title="Eliminar compañía" style="width:32px;height:32px;display:grid;place-items:center;border-radius:8px;background:#FFFFFF;border:1px solid #D9D9D4;color:#66666E" style-hover="color:#A12828;background:#F8E6E6;border-color:#E7C9C9">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" style="width:15px;height:15px"><path d="M4 6h12M8 6V4h4v2M6 6l.8 10h6.4L14 6" stroke-linejoin="round"></path></svg>
+              </button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;margin:22px 0 8px;border:1px solid #E6E6E2;border-radius:12px;overflow:hidden">
+              <div style="padding:14px 14px 12px">
+                <div style="font-size:11px;color:#66666E;font-weight:500">Dueños</div>
+                <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:30px;font-weight:500;letter-spacing:-0.04em;line-height:1.1;margin-top:2px">{{ sel.ownersN }}</div>
+                <div style="height:3px;border-radius:2px;background:#F0F0ED;margin:10px 0 6px;overflow:hidden"><span style="display:block;height:100%;width:{{ sel.ownersBar }};background:{{ sel.color }};border-radius:2px;transition:width .9s cubic-bezier(.16,1,.3,1)"></span></div>
+                <div style="font-size:11px;color:#8E8E95;font-family:'Geist Mono',ui-monospace,monospace">{{ sel.ownersPct }}% declarado</div>
+              </div>
+              <div style="padding:14px 14px 12px;border-left:1px solid #E6E6E2">
+                <div style="font-size:11px;color:#66666E;font-weight:500">Participadas</div>
+                <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:30px;font-weight:500;letter-spacing:-0.04em;line-height:1.1;margin-top:2px">{{ sel.ownedN }}</div>
+                <div style="height:3px;border-radius:2px;background:#F0F0ED;margin:10px 0 6px;overflow:hidden"><span style="display:block;height:100%;width:{{ sel.ownedBar }};background:{{ sel.color }};border-radius:2px;transition:width .9s cubic-bezier(.16,1,.3,1)"></span></div>
+                <div style="font-size:11px;color:#8E8E95;font-family:'Geist Mono',ui-monospace,monospace">{{ sel.ownedPct }}% declarado</div>
+              </div>
+            </div>
+
+            <sc-for list="{{ relSections }}" as="rs" hint-placeholder-count="2">
+              <section style="margin-top:20px">
+                <header style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                  <span style="width:26px;height:26px;border-radius:7px;display:grid;place-items:center;flex-shrink:0;background:{{ rs.iconBg }};color:{{ rs.iconFg }}">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" style="width:14px;height:14px"><path d="{{ rs.iconPath }}"></path></svg>
+                  </span>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:13.5px;font-weight:600;letter-spacing:-0.01em">{{ rs.title }} <span style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;color:#8E8E95;font-weight:500;margin-left:4px">{{ rs.count }}</span></div>
+                    <div style="font-size:11.5px;color:#8E8E95">{{ rs.subtitle }}</div>
+                  </div>
+                </header>
+                <sc-if value="{{ rs.empty }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:14px;border:1px dashed #D9D9D4;border-radius:8px;font-size:12px;color:#8E8E95;text-align:center">{{ rs.emptyText }}</div>
+                </sc-if>
+                <ul style="display:grid;gap:4px;margin:0;padding:0;list-style:none">
+                  <sc-for list="{{ rs.items }}" as="it" hint-placeholder-count="2">
+                    <li onClick="{{ it.onClick }}" onMouseEnter="{{ it.enter }}" onMouseLeave="{{ it.leave }}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid #E6E6E2;background:#FFFFFF;cursor:pointer;transition:border-color .14s, box-shadow .14s, transform .25s cubic-bezier(.16,1,.3,1)" style-hover="border-color:#D9D9D4;box-shadow:0 1px 2px rgba(18,18,20,.05),0 6px 16px -4px rgba(18,18,20,.10);transform:translateX(2px)">
+                      <div style="flex:1;min-width:0">
+                        <div style="font-size:12.5px;font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.name }}</div>
+                        <div style="display:flex;gap:8px;font-size:10.5px;color:#8E8E95;margin-top:1px">
+                          <span style="font-weight:650;color:{{ it.color }}">{{ it.type }}</span>
+                          <span style="font-family:'Geist Mono',ui-monospace,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.nit }}</span>
+                        </div>
+                        <div style="height:3px;margin-top:7px;border-radius:2px;background:#F0F0ED;overflow:hidden"><span style="display:block;height:100%;border-radius:2px;width:{{ it.fillW }};background:{{ it.fill }}"></span></div>
+                      </div>
+                      <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:{{ it.pctSize }};font-weight:{{ it.pctWeight }};letter-spacing:-0.02em;white-space:nowrap;color:{{ it.pctColor }}">{{ it.pct }}</div>
+                    </li>
+                  </sc-for>
+                </ul>
+              </section>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{ noSel }}" hint-placeholder-val="{{ true }}">
+          <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px">
+            <svg viewBox="0 0 120 90" fill="none" style="width:150px;height:112px">
+              <path d="M60 22v16M28 38h64M28 38v14M92 38v14M60 38v14" stroke="#C4C4BE" stroke-width="1.4" stroke-linecap="round"></path>
+              <rect x="46" y="6" width="28" height="16" rx="3" fill="#7A1F32"></rect>
+              <rect x="14" y="52" width="28" height="16" rx="3" stroke="#8E8E95" stroke-width="1.4" fill="#FFFFFF"></rect>
+              <rect x="46" y="52" width="28" height="16" rx="3" stroke="#8E8E95" stroke-width="1.4" fill="#FFFFFF"></rect>
+              <rect x="78" y="52" width="28" height="16" rx="3" stroke="#8E8E95" stroke-width="1.4" fill="#FFFFFF"></rect>
+            </svg>
+            <p style="margin:18px 0 0;font-size:15px;font-weight:600;letter-spacing:-0.015em">Selecciona una compañía</p>
+            <p style="margin:6px 0 0;font-size:12.5px;color:#66666E;max-width:260px;line-height:1.55">Haz clic en un nodo del mapa o en la lista para ver sus dueños, sus participadas y el porcentaje declarado. Doble clic enfoca la cadena completa.</p>
+          </div>
+        </sc-if>
+      </aside>
+    </div>
+
+    <button onClick="{{ openRight }}" title="Mostrar detalle" style="display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:16px;background:#FFFFFF;color:#66666E;overflow:hidden;border-left:1px solid #E6E6E2;opacity:{{ rightRailOp }};transition:opacity .3s,color .14s" style-hover="color:#7A1F32;background:#FAFAF9">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.75" style="width:16px;height:16px;flex-shrink:0"><path d="M12 4l-6 6 6 6"></path></svg>
+      <span style="writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;font-weight:600">Detalle</span>
+    </button>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;groupIndependent&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Grafo&quot;},&quot;pillMode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Todas&quot;,&quot;Solo ≥ 5 %&quot;,&quot;Solo al resaltar&quot;],&quot;default&quot;:&quot;Todas&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Grafo&quot;},&quot;showFlow&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Animación&quot;}}">
+const NODES = [
+  { id: 46, name: 'Namaca & CIA SCA', nit: '819.003.488-5', type: 'SCA' },
+  { id: 47, name: 'M&M Dávila y CIA SCA', nit: '819.002.718-2', type: 'SCA' },
+  { id: 48, name: 'MIA Corporation SAS', nit: '900.033.653-6', type: 'SAS' },
+  { id: 49, name: 'Inversiones New Land SAS', nit: '819.004.454-1', type: 'SAS' },
+  { id: 50, name: 'EYD & CIA SCA', nit: '900.042.926-1', type: 'SCA' },
+  { id: 51, name: 'AFD Corporation & CIA SCA', nit: '900.033.653-6', type: 'SCA' },
+  { id: 52, name: 'CI Tequendama', nit: '900.033.653-6', type: 'Otro' },
+  { id: 53, name: 'CI La Samaria', nit: '819.003.792-1', type: 'Otro' },
+  { id: 111, name: 'Derivados y Fracciones de Palma SAS', nit: '900.033.653-6', type: 'SAS' },
+  { id: 136, name: 'FDF Investment & CIA SCA', nit: '900.763.029-1', type: 'SCA' },
+  { id: 153, name: 'Inversiones FDF SAS', nit: '900.272.768-9', type: 'SAS' },
+  { id: 154, name: 'AP DAVILA SAS', nit: '900.304.963-0', type: 'SAS' },
+  { id: 155, name: 'FDF Investment Corporation', nit: '25920131832439', type: 'SA' },
+  { id: 188, name: 'Biocombustible SA', nit: '900.117.087-9', type: 'SA' },
+  { id: 213, name: 'ECO BIO Colombia SAS', nit: '900.272.768-9', type: 'SAS' },
+  { id: 222, name: 'Elogia Soluciones Logísticas', nit: '819.004.116-5', type: 'Otro' },
+  { id: 227, name: 'Inversiones Soviva SAS', nit: '900.267.069-9', type: 'SAS' },
+  { id: 235, name: 'Palmas de San Alberto', nit: '900.207.912-7', type: 'Otro' },
+  { id: 246, name: 'Voltaje Empresarial', nit: '900.654.403-6', type: 'Otro' },
+  { id: 258, name: 'Agroingenium', nit: '901.203.079-1', type: 'Otro' },
+  { id: 2, name: 'Zona Franca Las Américas', nit: '900.162.578-4', type: 'Otro' },
+  { id: 11, name: 'Carmen Abondano De Dávila', nit: 'Persona Natural', type: 'PN' },
+  { id: 12, name: 'Otros accionistas', nit: 'Minoritarios', type: 'Otro' },
+  { id: 20, name: 'Zona Franca Tayrona', nit: '900.166.187-6', type: 'Otro' },
+  { id: 32, name: 'Inversiones Solano Dávila & CIA SAS', nit: '819.004.204-5', type: 'SAS' },
+  { id: 33, name: 'Zapata Solano e Hijos SCA', nit: '830.506.310-2', type: 'SCA' },
+  { id: 67, name: 'Julio Mauricio Alcibiades González Acosta', nit: 'Persona Natural', type: 'PN' },
+  { id: 84, name: 'Caribbean Eco Soap', nit: '900.324.176-3', type: 'Otro' },
+  { id: 85, name: 'Cacata Investments Inc.', nit: '19567', type: 'SA' },
+  { id: 91, name: 'Global Organic IN', nit: '359260', type: 'Otro' },
+  { id: 92, name: 'South Bay Corporation', nit: 'RUC: 57672-1-372127 D.V 60', type: 'SA' },
+  { id: 95, name: 'Palma y Trabajo', nit: '900.702.560-0', type: 'Otro' },
+  { id: 96, name: 'Inverfranca Management SA', nit: '18098411707043 DV85', type: 'SA' },
+  { id: 99, name: 'Terminal de Graneles Líquidos del Caribe SAS', nit: '819.002.433-6', type: 'SAS' },
+  { id: 100, name: 'Puerto de las Américas Holding SAS', nit: '900.763.043-5', type: 'SAS' },
+  { id: 105, name: 'Trading Services UC SAS', nit: '900.408.314-5', type: 'SAS' },
+  { id: 106, name: 'We Bay', nit: '635,182', type: 'Otro' },
+  { id: 7, name: 'Oleaginosas las Brisas', nit: '890.901.733-6', type: 'SAS' },
+  { id: 15, name: 'Oleaginosas del Yuma', nit: '900.769.574-1', type: 'SAS' },
+  { id: 17, name: 'INVERFRANCA MANAGEMENT S.A.', nit: '', type: 'SA' },
+];
+const RAW_EDGES = [
+  [46,51,null],[47,50,null],[49,92,null],[48,51,null],[222,53,'93,75'],[48,235,'20'],[46,111,null],[51,52,'60,57'],[51,136,'20'],[52,136,'44,17'],[53,136,null],[153,136,'8,55'],[154,53,'0,02'],[155,53,'0,01'],[52,188,'99,76'],[153,188,null],[213,188,'17,79'],[52,222,'14,187'],[53,222,'1,25'],[227,222,'16,67'],[52,246,'100'],[53,188,'0,08'],[235,258,'100'],[136,2,'41,189'],[235,2,'4,18'],[2,20,'19,88'],[11,2,'17,234'],[12,2,'0,388'],[32,20,'20,69'],[67,20,'2'],[33,20,'8,44'],[227,20,'49'],[85,84,'100'],[92,91,null],[96,95,'100'],[100,99,'100'],[106,105,null],[111,7,null],[111,235,'100'],[17,15,'100'],
+];
+const TYPE_COLOR = { SAS: '#2C5A86', SCA: '#7B3A5E', SA: '#9A7318', PN: '#B04E2A', Otro: '#6A6A72' };
+const TYPE_LABEL = { SAS: 'Sociedad por Acciones Simplificada', SCA: 'Sociedad en Comandita por Acciones', SA: 'Sociedad Anónima', PN: 'Persona Natural', Otro: 'Otra figura' };
+const TYPES = ['SAS', 'SCA', 'SA', 'PN', 'Otro'];
+const TIER = {
+  ctrl: { stroke: '#1F5E4A', w: 2.2, label: '≥ 50 % · control', sample: '100%', bg: '#1F5E4A', fg: '#FFFFFF', bd: '#184B3B', bs: 'solid', fs: 'normal', fill: '#1F5E4A' },
+  sig: { stroke: '#9A6A22', w: 1.6, label: '5 – 50 %', sample: '20%', bg: '#F6E9CB', fg: '#573604', bd: '#C9A458', bs: 'solid', fs: 'normal', fill: '#C08A33' },
+  minor: { stroke: '#A3A39C', w: 1.1, label: '< 5 %', sample: '0,5%', bg: '#FFFFFF', fg: '#6B6560', bd: '#C9C6BE', bs: 'solid', fs: 'normal', fill: '#A3A39C' },
+  missing: { stroke: '#7A1F32', w: 1.3, label: 'Sin % declarado', sample: 'SIN %', bg: '#FFFFFF', fg: '#7A1F32', bd: '#D9A7B3', bs: 'dashed', fs: 'italic', fill: 'repeating-linear-gradient(90deg, #D9A7B3 0 4px, transparent 4px 7px)' },
+};
+const pw = (w) => (w ? parseFloat(w.replace(',', '.')) || 0 : 0);
+const tierFor = (w) => { if (!w) return 'missing'; const n = pw(w); if (n >= 50) return 'ctrl'; if (n >= 5) return 'sig'; return 'minor'; };
+const EDGES = RAW_EDGES.map(([from, to, weight], i) => ({ i, from, to, weight, tier: tierFor(weight), label: weight ? weight + '%' : 'sin %' }));
+const BY_ID = {}; NODES.forEach((n) => (BY_ID[n.id] = n));
+const DEG = {}; NODES.forEach((n) => (DEG[n.id] = { inn: 0, out: 0 }));
+EDGES.forEach((e) => { DEG[e.to].inn++; DEG[e.from].out++; });
+const NW = 224, NH = 96;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const r1 = (v) => Math.round(v * 10) / 10;
+const EASE = 'cubic-bezier(.16,1,.3,1)';
+
+function chainOf(id) {
+  const up = new Set(), down = new Set();
+  let st = [id];
+  while (st.length) { const c = st.pop(); EDGES.forEach((e) => { if (e.to === c && !up.has(e.from)) { up.add(e.from); st.push(e.from); } }); }
+  st = [id];
+  while (st.length) { const c = st.pop(); EDGES.forEach((e) => { if (e.from === c && !down.has(e.to)) { down.add(e.to); st.push(e.to); } }); }
+  return { up, down, active: new Set([id, ...up, ...down]) };
+}
+
+function dagreLayout(ids, eds, dir) {
+  const g = new window.dagre.graphlib.Graph({ multigraph: true });
+  g.setGraph({ rankdir: dir, nodesep: dir === 'TB' ? 26 : 18, ranksep: dir === 'TB' ? 24 : 30, edgesep: 12, marginx: 0, marginy: 0 });
+  g.setDefaultEdgeLabel(() => ({}));
+  ids.forEach((id) => g.setNode(String(id), { width: NW, height: NH }));
+  eds.forEach((e) => g.setEdge(String(e.from), String(e.to), { width: 18 + e.label.length * 6.9, height: 24, labelpos: 'c' }, 'e' + e.i));
+  window.dagre.layout(g);
+  const nodes = {};
+  ids.forEach((id) => { const n = g.node(String(id)); nodes[id] = { x: n.x - NW / 2, y: n.y - NH / 2 }; });
+  const edges = {};
+  eds.forEach((e) => { const d = g.edge(String(e.from), String(e.to), 'e' + e.i); edges[e.i] = { pts: d.points.map((p) => ({ x: p.x, y: p.y })), lx: d.x, ly: d.y }; });
+  const gr = g.graph();
+  return { nodes, edges, w: gr.width || NW, h: gr.height || NH };
+}
+
+function shift(part, dx, dy, nodes, edges) {
+  Object.keys(part.nodes).forEach((id) => { const p = part.nodes[id]; nodes[id] = { x: p.x + dx, y: p.y + dy }; });
+  Object.keys(part.edges).forEach((i) => { const e = part.edges[i]; edges[i] = { pts: e.pts.map((p) => ({ x: p.x + dx, y: p.y + dy })), lx: e.lx + dx, ly: e.ly + dy }; });
+}
+
+function computeLayout(ids, eds, dir, group, aspect) {
+  const single = () => { const r = dagreLayout(ids, eds, dir); return { nodes: r.nodes, edges: r.edges, frame: null }; };
+  if (!group) return single();
+  const parent = {}; ids.forEach((i) => (parent[i] = i));
+  const find = (x) => (parent[x] === x ? x : (parent[x] = find(parent[x])));
+  eds.forEach((e) => { parent[find(e.from)] = find(e.to); });
+  const comps = {}; ids.forEach((i) => { (comps[find(i)] = comps[find(i)] || []).push(i); });
+  const list = Object.values(comps);
+  const big = list.filter((c) => c.length > 3), small = list.filter((c) => c.length <= 3);
+  if (!big.length || !small.length) return single();
+  const bigIds = big.flat();
+  const main = dagreLayout(bigIds, eds.filter((e) => bigIds.includes(e.from)), dir);
+  const parts = small.sort((a, b) => b.length - a.length).map((c) => dagreLayout(c, eds.filter((e) => c.includes(e.from)), dir));
+  const GX = 36, GY = 36, PAD = 28, HEAD = 58, GAP = 110;
+  let best = null;
+  for (let cols = 1; cols <= parts.length; cols++) {
+    const rows = []; for (let i = 0; i < parts.length; i += cols) rows.push(parts.slice(i, i + cols));
+    const rw = rows.map((r) => r.reduce((s, p) => s + p.w, 0) + GX * (r.length - 1));
+    const rh = rows.map((r) => Math.max(...r.map((p) => p.h)));
+    const bw = Math.max(...rw) + PAD * 2, bh = rh.reduce((a, b) => a + b, 0) + GY * (rows.length - 1) + PAD + HEAD;
+    ['right', 'below'].forEach((side) => {
+      const W = side === 'right' ? main.w + GAP + bw : Math.max(main.w, bw);
+      const H = side === 'right' ? Math.max(main.h, bh) : main.h + GAP + bh;
+      const score = Math.abs(Math.log(W / H / (aspect || 1.75)));
+      if (!best || score < best.score) best = { score, rows, rh, bw, bh, side };
+    });
+  }
+  const nodes = {}, edges = {};
+  shift(main, 0, 0, nodes, edges);
+  const bx = best.side === 'right' ? main.w + GAP : 0;
+  const by = best.side === 'right' ? 0 : main.h + GAP;
+  let y = by + HEAD;
+  best.rows.forEach((r, ri) => {
+    let x = bx + PAD;
+    r.forEach((p) => { shift(p, x, y + (best.rh[ri] - p.h) / 2, nodes, edges); x += p.w + GX; });
+    y += best.rh[ri] + GY;
+  });
+  return { nodes, edges, frame: { x: bx, y: by, w: best.bw, h: best.bh, count: small.length } };
+}
+
+function smooth(P) {
+  let d = `M${r1(P[0].x)},${r1(P[0].y)}`;
+  for (let i = 0; i < P.length - 1; i++) {
+    const p0 = P[i - 1] || P[i], p1 = P[i], p2 = P[i + 1], p3 = P[i + 2] || p2;
+    d += ` C${r1(p1.x + (p2.x - p0.x) / 6)},${r1(p1.y + (p2.y - p0.y) / 6)} ${r1(p2.x - (p3.x - p1.x) / 6)},${r1(p2.y - (p3.y - p1.y) / 6)} ${r1(p2.x)},${r1(p2.y)}`;
+  }
+  return d;
+}
+
+function ortho(pts, tb, lane) {
+  const A = (p) => (tb ? p.y : p.x), C = (p) => (tb ? p.x : p.y);
+  const mk = (a, c) => (tb ? { x: c, y: a } : { x: a, y: c });
+  const out = [pts[0]];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p = out[out.length - 1], q = pts[i + 1];
+    if (Math.abs(C(p) - C(q)) < 1.5) { out.push(mk(A(q), C(p))); continue; }
+    const m = (A(p) + A(q)) / 2 + lane;
+    out.push(mk(m, C(p)), mk(m, C(q)), q);
+  }
+  const P = [out[0]];
+  for (let i = 1; i < out.length; i++) {
+    const a = P[P.length - 1], b = out[i];
+    if (Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5) continue;
+    if (P.length >= 2) { const z = P[P.length - 2]; if ((Math.abs(z.x - a.x) < 0.5 && Math.abs(a.x - b.x) < 0.5) || (Math.abs(z.y - a.y) < 0.5 && Math.abs(a.y - b.y) < 0.5)) { P[P.length - 1] = b; continue; } }
+    P.push(b);
+  }
+  let d = `M${r1(P[0].x)},${r1(P[0].y)}`;
+  for (let i = 1; i < P.length - 1; i++) {
+    const a = P[i - 1], b = P[i], c = P[i + 1];
+    const l1 = Math.hypot(b.x - a.x, b.y - a.y), l2 = Math.hypot(c.x - b.x, c.y - b.y);
+    const r = Math.min(8, l1 / 2, l2 / 2);
+    const p1 = { x: b.x - ((b.x - a.x) / l1) * r, y: b.y - ((b.y - a.y) / l1) * r };
+    const p2 = { x: b.x + ((c.x - b.x) / l2) * r, y: b.y + ((c.y - b.y) / l2) * r };
+    d += ` L${r1(p1.x)},${r1(p1.y)} Q${r1(b.x)},${r1(b.y)} ${r1(p2.x)},${r1(p2.y)}`;
+  }
+  const L = P[P.length - 1];
+  return d + ` L${r1(L.x)},${r1(L.y)}`;
+}
+
+function edgeGeom(geo, s, t, dir, idx) {
+  const P = geo.pts.slice(1, -1);
+  const first = P[0] || geo.pts[geo.pts.length - 1], last = P[P.length - 1] || geo.pts[0];
+  let pts, arrow;
+  if (dir === 'TB') {
+    const sp = { x: clamp(first.x, s.x + 18, s.x + NW - 18), y: s.y + NH };
+    const tp = { x: clamp(last.x, t.x + 18, t.x + NW - 18), y: t.y };
+    pts = [sp, ...P, { x: tp.x, y: tp.y - 8 }];
+    arrow = `M${r1(tp.x - 5)},${r1(tp.y - 9)} L${r1(tp.x + 5)},${r1(tp.y - 9)} L${r1(tp.x)},${r1(tp.y)} Z`;
+  } else {
+    const sp = { x: s.x + NW, y: clamp(first.y, s.y + 14, s.y + NH - 14) };
+    const tp = { x: t.x, y: clamp(last.y, t.y + 14, t.y + NH - 14) };
+    pts = [sp, ...P, { x: tp.x - 8, y: tp.y }];
+    arrow = `M${r1(tp.x - 9)},${r1(tp.y - 5)} L${r1(tp.x - 9)},${r1(tp.y + 5)} L${r1(tp.x)},${r1(tp.y)} Z`;
+  }
+  return { d: ortho(pts, dir === 'TB', ((idx % 5) - 2) * 4), arrow, lx: r1(geo.lx), ly: r1(geo.ly) };
+}
+
+class Component extends DCLogic {
+  state = { ready: false, dir: 'TB', focusId: null, selectedId: null, hoverId: null, hoverEdge: null, hoverTier: null, query: '', filterType: 'ALL', leftOpen: false, rightOpen: false, legendOpen: true, vw: window.innerWidth };
+  canvasRef = React.createRef();
+  worldRef = React.createRef();
+  miniViewRef = React.createRef();
+  searchRef = React.createRef();
+  cam = { x: 0, y: 0, k: 0.8 };
+
+  componentDidMount() {
+    this._rs = () => { if (window.innerWidth !== this.state.vw) this.setState({ vw: window.innerWidth }); };
+    window.addEventListener('resize', this._rs);
+    const wait = () => { if (window.dagre) this.setState({ ready: true }); else this._wt = setTimeout(wait, 40); };
+    wait();
+    this._wheel = (e) => this.onWheel(e);
+    this.canvasRef.current && this.canvasRef.current.addEventListener('wheel', this._wheel, { passive: false });
+    this._key = (e) => {
+      const tag = (e.target && e.target.tagName) || '';
+      if (e.key === 'Escape' && this.state.focusId != null) this.setState({ focusId: null });
+      if (e.key === '/' && !['INPUT', 'TEXTAREA'].includes(tag)) { e.preventDefault(); this.setState({ leftOpen: true }, () => setTimeout(() => this.searchRef.current && this.searchRef.current.focus(), 60)); }
+    };
+    window.addEventListener('keydown', this._key);
+    this._ro = new ResizeObserver(() => this.apply());
+    this.canvasRef.current && this._ro.observe(this.canvasRef.current);
+  }
+  componentWillUnmount() {
+    clearTimeout(this._wt); cancelAnimationFrame(this._raf);
+    this.canvasRef.current && this.canvasRef.current.removeEventListener('wheel', this._wheel);
+    window.removeEventListener('keydown', this._key); window.removeEventListener('resize', this._rs);
+    this._ro && this._ro.disconnect();
+  }
+  componentDidUpdate(pp, ps) {
+    if (!this.state.ready) return;
+    const L = this.getLayout();
+    if (L.key !== this._lastKey) {
+      const first = this._lastKey == null;
+      this._lastKey = L.key;
+      this.play(first);
+      if (first) { this.fit(L.fit, 0, 0.82); requestAnimationFrame(() => this.fit(L.fit, 1500)); }
+      else if (ps.focusId == null && this.state.focusId != null) { this._saved = { ...this.cam }; this.fit(L.fit, 950); }
+      else if (ps.focusId != null && this.state.focusId == null && this._saved && ps.dir === this.state.dir) { this.animateCam(this._saved, 950); this._saved = null; }
+      else this.fit(L.fit, 950);
+    }
+    if (ps.rightOpen !== this.state.rightOpen || ps.leftOpen !== this.state.leftOpen) {
+      clearTimeout(this._pt);
+      this._pt = setTimeout(() => { this.apply(); if (this.state.selectedId != null) this.ensureVisible(this.state.selectedId); }, 540);
+    }
+  }
+
+  getLayout() {
+    const { dir, focusId } = this.state;
+    const group = this.props.groupIndependent ?? true;
+    const key = [dir, group ? 1 : 0, focusId ?? '-'].join('|');
+    if (this._cache && this._cache.key === key) return this._cache;
+    let ids = NODES.map((n) => n.id), chain = null;
+    if (focusId != null) { chain = chainOf(focusId); ids = ids.filter((id) => chain.active.has(id)); }
+    const idSet = new Set(ids);
+    const eds = EDGES.filter((e) => idSet.has(e.from) && idSet.has(e.to));
+    const sz = this.size(); const res = computeLayout(ids, eds, dir, group && focusId == null, sz.W > 1 ? clamp((sz.W - 128) / (sz.H - 158), 0.8, 3) : 1.75);
+    const prev = this._cache || { pos: {}, geom: {} };
+    const pos = { ...prev.pos, ...res.nodes };
+    const geom = { ...prev.geom };
+    eds.forEach((e) => { geom[e.i] = edgeGeom(res.edges[e.i], pos[e.from], pos[e.to], dir, e.i); });
+    const axis = (p) => Math.round(dir === 'TB' ? p.y : p.x);
+    const levels = Array.from(new Set(ids.map((id) => axis(pos[id])))).sort((a, b) => a - b);
+    const ranks = {}; ids.forEach((id) => (ranks[id] = levels.indexOf(axis(pos[id]))));
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    ids.forEach((id) => { const p = pos[id]; x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x + NW); y1 = Math.max(y1, p.y + NH); });
+    if (res.frame) { x0 = Math.min(x0, res.frame.x); y0 = Math.min(y0, res.frame.y); x1 = Math.max(x1, res.frame.x + res.frame.w); y1 = Math.max(y1, res.frame.y + res.frame.h); }
+    this._cache = { key, pos, geom, ranks, active: idSet, activeEdges: new Set(eds.map((e) => e.i)), chain, frame: res.frame, lastFrame: res.frame || prev.lastFrame, fit: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } };
+    return this._cache;
+  }
+
+  play(first) {
+    const root = this.worldRef.current;
+    if (!root) return;
+    root.querySelectorAll('[data-anim]').forEach((el) => el.getAnimations().forEach((a) => a.cancel()));
+    const step = first ? 115 : 60, base = first ? 220 : 560;
+    if (first) root.querySelectorAll('[data-card]').forEach((el) => {
+      const r = +el.dataset.rank || 0;
+      el.animate([{ opacity: 0, transform: 'translateY(18px) scale(.94)' }, { opacity: 1, transform: 'translateY(0) scale(1)' }], { duration: 750, delay: base + r * step, easing: EASE, fill: 'backwards' });
+    });
+    const eb = first ? base + 300 : base;
+    root.querySelectorAll('[data-edge]').forEach((el) => {
+      const r = +el.dataset.rank || 0, delay = eb + r * step;
+      if (el.dataset.dash === '1') { el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500, delay: delay + 200, fill: 'backwards' }); return; }
+      const len = el.getTotalLength ? el.getTotalLength() : 0;
+      if (!len) return;
+      el.animate([{ strokeDasharray: `${len} ${len}`, strokeDashoffset: len }, { strokeDasharray: `${len} ${len}`, strokeDashoffset: 0 }], { duration: 850, delay, easing: EASE, fill: 'backwards' });
+    });
+    root.querySelectorAll('[data-arrow]').forEach((el) => {
+      const r = +el.dataset.rank || 0;
+      el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: eb + r * step + 620, fill: 'backwards' });
+    });
+    root.querySelectorAll('[data-pill]').forEach((el) => {
+      const r = +el.dataset.rank || 0;
+      el.animate([{ opacity: 0, transform: 'scale(.55)' }, { opacity: 1, transform: 'scale(1)' }], { duration: 480, delay: eb + r * step + 380, easing: 'cubic-bezier(.34,1.56,.64,1)', fill: 'backwards' });
+    });
+    root.querySelectorAll('[data-flow]').forEach((el) => el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: eb + 700, fill: 'backwards' }));
+  }
+
+  size() { const c = this.canvasRef.current; if (!c) return { W: 1, H: 1 }; return { W: c.clientWidth || 1, H: c.clientHeight || 1 }; }
+  apply() {
+    const w = this.worldRef.current, c = this.canvasRef.current;
+    if (!w || !c) return;
+    const { x, y, k } = this.cam;
+    w.style.transform = `translate(${x}px,${y}px) scale(${k})`;
+    const lod = clamp(0.8 / k, 1, 1.9);
+    w.style.setProperty('--lod', lod.toFixed(3));
+    w.style.setProperty('--plod', Math.min(lod, 1.5).toFixed(3));
+    w.style.setProperty('--detail', lod > 1.06 ? '0' : '1');
+    w.style.setProperty('--minor', k < 0.42 ? '0' : '1');
+    w.style.setProperty('--nameMargin', lod > 1.06 ? 'auto 0' : '0');
+    const mv = this.miniViewRef.current;
+    if (mv) { const { W, H } = this.size(); mv.setAttribute('x', -x / k); mv.setAttribute('y', -y / k); mv.setAttribute('width', W / k); mv.setAttribute('height', H / k); }
+  }
+  animateCam(to, dur) {
+    cancelAnimationFrame(this._raf);
+    if (!dur) { this.cam = { ...to }; this.apply(); return; }
+    const { W, H } = this.size();
+    const from = { ...this.cam };
+    const fc = { x: (W / 2 - from.x) / from.k, y: (H / 2 - from.y) / from.k }, tc = { x: (W / 2 - to.x) / to.k, y: (H / 2 - to.y) / to.k };
+    const t0 = performance.now(), ease = (t) => 1 - Math.pow(1 - t, 4);
+    const tick = (now) => {
+      const t = Math.min(1, (now - t0) / dur), e = ease(t);
+      const k = Math.exp(Math.log(from.k) + (Math.log(to.k) - Math.log(from.k)) * e);
+      const cx = fc.x + (tc.x - fc.x) * e, cy = fc.y + (tc.y - fc.y) * e;
+      this.cam = { k, x: W / 2 - cx * k, y: H / 2 - cy * k };
+      this.apply();
+      if (t < 1) this._raf = requestAnimationFrame(tick);
+    };
+    this._raf = requestAnimationFrame(tick);
+  }
+  fit(b, dur, mul = 1) {
+    const { W, H } = this.size();
+    const pad = 64;
+    const k = clamp(Math.min((W - pad * 2) / b.w, (H - pad * 2 - 30) / b.h), 0.2, 1.1) * mul;
+    this.animateCam({ k, x: W / 2 - (b.x + b.w / 2) * k, y: (H - 30) / 2 - (b.y + b.h / 2) * k }, dur);
+  }
+  zoomBy(f) {
+    const { W, H } = this.size(); const { x, y, k } = this.cam;
+    const nk = clamp(k * f, 0.2, 2.5);
+    this.animateCam({ k: nk, x: W / 2 - ((W / 2 - x) / k) * nk, y: H / 2 - ((H / 2 - y) / k) * nk }, 320);
+  }
+  ensureVisible(id) {
+    const L = this._cache; if (!L || !L.pos[id]) return;
+    const p = L.pos[id]; const { W, H } = this.size(); const { x, y, k } = this.cam;
+    const sx0 = x + p.x * k, sy0 = y + p.y * k, sx1 = sx0 + NW * k, sy1 = sy0 + NH * k;
+    if (sx0 > 40 && sy0 > 40 && sx1 < W - 40 && sy1 < H - 40) return;
+    this.animateCam({ k, x: W / 2 - (p.x + NW / 2) * k, y: H / 2 - (p.y + NH / 2) * k }, 700);
+  }
+  onWheel(e) {
+    e.preventDefault();
+    cancelAnimationFrame(this._raf);
+    const c = this.canvasRef.current; const r = c.getBoundingClientRect();
+    const mx = e.clientX - r.left, my = e.clientY - r.top; const { x, y, k } = this.cam;
+    const nk = clamp(k * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0016)), 0.2, 2.5);
+    this.cam = { k: nk, x: mx - ((mx - x) * nk) / k, y: my - ((my - y) * nk) / k };
+    this.apply();
+  }
+  select(id) {
+    const wasOpen = this.state.rightOpen;
+    this.setState({ selectedId: id, rightOpen: true });
+    if (wasOpen) setTimeout(() => this.ensureVisible(id), 30);
+  }
+  focus(id) { this.setState({ focusId: id, selectedId: id, hoverId: null, hoverEdge: null }); }
+
+  renderVals() {
+    const s = this.state;
+    const pillMode = this.props.pillMode ?? 'Todas';
+    const showFlow = this.props.showFlow ?? true;
+    const L = s.ready && window.dagre ? this.getLayout() : null;
+    const act = s.hoverId != null ? s.hoverId : (s.hoverEdge == null && !s.hoverTier ? s.selectedId : null);
+    const hoverMode = s.hoverId != null || s.hoverEdge != null || !!s.hoverTier;
+    const anyEmph = s.hoverEdge != null || !!s.hoverTier || act != null;
+    const nb = new Set();
+    if (act != null) { nb.add(act); EDGES.forEach((e) => { if (e.from === act) nb.add(e.to); if (e.to === act) nb.add(e.from); }); }
+    if (s.hoverEdge != null) { const e = EDGES[s.hoverEdge]; nb.add(e.from); nb.add(e.to); }
+    if (s.hoverTier) EDGES.forEach((e) => { if (e.tier === s.hoverTier) { nb.add(e.from); nb.add(e.to); } });
+    const q = s.query.trim().toLowerCase();
+    const filt = !!q || s.filterType !== 'ALL';
+    const match = (n) => (s.filterType === 'ALL' || n.type === s.filterType) && (!q || n.name.toLowerCase().includes(q) || n.nit.toLowerCase().includes(q));
+    const edgeEmph = (e) => (s.hoverEdge != null ? e.i === s.hoverEdge : s.hoverTier ? e.tier === s.hoverTier : act != null ? e.from === act || e.to === act : false);
+
+    const nodes = !L ? [] : NODES.map((n) => {
+      const vis = L.active.has(n.id);
+      const p = L.pos[n.id] || { x: 0, y: 0 };
+      let op = 1;
+      if (!vis) op = 0;
+      else {
+        if (anyEmph && !nb.has(n.id)) op = hoverMode ? 0.3 : 0.5;
+        if (filt && !match(n)) op = Math.min(op, 0.22);
+      }
+      const sel = s.selectedId === n.id, hov = s.hoverId === n.id, foc = s.focusId === n.id;
+      const color = TYPE_COLOR[n.type];
+      return {
+        id: n.id, name: n.name, nit: n.nit || '—', type: n.type, color, inn: DEG[n.id].inn, out: DEG[n.id].out,
+        x: r1(p.x), y: r1(p.y), op, pe: vis ? 'auto' : 'none', rank: L.ranks[n.id] ?? 0,
+        z: sel || hov ? 5 : 1, sel,
+        ring: foc ? '#7A1F32' : '#121214',
+        border: foc ? '#7A1F32' : sel ? '#121214' : hov ? '#C4C4BE' : '#E6E6E2',
+        shadow: foc ? '0 0 0 2px #7A1F32, 0 18px 40px -12px rgba(122,31,50,.45)' : sel ? '0 0 0 1px #121214, 0 2px 6px rgba(18,18,20,.06), 0 24px 48px -12px rgba(18,18,20,.22)' : hov ? '0 2px 4px rgba(18,18,20,.05), 0 14px 28px -8px rgba(18,18,20,.18)' : '0 1px 0 rgba(18,18,20,.04), 0 1px 2px rgba(18,18,20,.06)',
+        lift: hov ? 'translateY(-3px)' : 'translateY(0)',
+        railInset: hov || sel || foc ? '0px' : '12px', railW: hov || sel || foc ? '4px' : '3px',
+        chipBg: `color-mix(in srgb, ${color} 9%, transparent)`,
+        enter: () => this.setState({ hoverId: n.id }),
+        leave: () => this.setState((st) => (st.hoverId === n.id ? { hoverId: null } : null)),
+        onClick: (ev) => { ev.stopPropagation(); this.select(n.id); },
+        onDbl: (ev) => { ev.stopPropagation(); this.focus(n.id); },
+      };
+    });
+
+    const flows = [];
+    const edges = !L ? [] : EDGES.map((e) => {
+      const g = L.geom[e.i];
+      const vis = L.activeEdges.has(e.i) && !!g;
+      const t = TIER[e.tier];
+      const em = anyEmph && edgeEmph(e);
+      const dim = anyEmph && !em;
+      let op = !vis ? 0 : dim ? (hoverMode ? 0.1 : 0.25) : 1;
+      if (vis && filt && !(match(BY_ID[e.from]) && match(BY_ID[e.to]))) op = Math.min(op, 0.14);
+      const show = pillMode === 'Todas' ? true : pillMode === 'Solo ≥ 5 %' ? e.tier !== 'minor' || em : em;
+      let pv = dim ? (hoverMode ? 0 : 0.35) : op;
+      let pillOp = !vis || !show ? '0' : e.tier === 'minor' && !em ? `calc(var(--minor,1) * ${pv})` : String(pv);
+      if (vis && em && showFlow) flows.push({ d: g.d, stroke: t.stroke });
+      return {
+        i: e.i, d: g ? g.d : '', arrow: g ? g.arrow : '', lx: g ? g.lx : 0, ly: g ? g.ly : 0,
+        rank: L.ranks[e.from] ?? 0, stroke: t.stroke,
+        sw: `calc(${(t.w * (em ? 1.45 : 1)).toFixed(2)}px * var(--lod,1))`,
+        dash: e.tier === 'missing' ? '6 5' : 'none', dashFlag: e.tier === 'missing' ? '1' : '0',
+        op, hitPe: vis ? 'stroke' : 'none', pillOp, pillPe: vis && show ? 'auto' : 'none', z: em ? 6 : 2,
+        label: e.label, pillBg: t.bg, pillFg: t.fg, pillBd: t.bd, pillBs: t.bs, pillFs: t.fs,
+        pillSh: em ? '0 0 0 3px rgba(122,31,50,.14), 0 6px 14px -4px rgba(18,18,20,.28)' : '0 1px 2px rgba(18,18,20,.06)',
+        enter: () => this.setState({ hoverEdge: e.i }),
+        leave: () => this.setState((st) => (st.hoverEdge === e.i ? { hoverEdge: null } : null)),
+      };
+    });
+
+    const fr = L && L.lastFrame;
+    const frame = fr ? { x: fr.x, y: fr.y, w: fr.w, h: fr.h, count: fr.count, op: L.frame ? 1 : 0 } : { x: 0, y: 0, w: 0, h: 0, count: 0, op: 0 };
+
+    const miniNodes = !L ? [] : NODES.filter((n) => L.active.has(n.id)).map((n) => ({ x: L.pos[n.id].x, y: L.pos[n.id].y, color: TYPE_COLOR[n.type], op: filt && !match(n) ? 0.25 : 1 }));
+    const fb = L ? L.fit : { x: 0, y: 0, w: 100, h: 100 };
+    const mp = Math.max(fb.w, fb.h) * 0.06;
+    this._mini = { x: fb.x - mp, y: fb.y - mp, w: fb.w + mp * 2, h: fb.h + mp * 2 };
+    const mini = { vb: `${this._mini.x} ${this._mini.y} ${this._mini.w} ${this._mini.h}`, sw: (Math.max(fb.w / 200, fb.h / 130) * 1.6).toFixed(1) };
+
+    const counts = {}; TYPES.forEach((t) => (counts[t] = 0)); NODES.forEach((n) => counts[n.type]++);
+    const typeSegs = TYPES.map((t) => ({ color: TYPE_COLOR[t], grow: counts[t] / NODES.length, op: s.filterType === 'ALL' || s.filterType === t ? 1 : 0.22 }));
+    const pill = (key, label, count, color, title) => {
+      const on = s.filterType === key;
+      return { label, count, title, bg: on ? color : '#FFFFFF', fg: on ? '#FFFFFF' : '#66666E', bd: on ? color : '#E6E6E2', dot: on ? '#FFFFFF' : color, onClick: () => this.setState((st) => ({ filterType: st.filterType === key && key !== 'ALL' ? 'ALL' : key })) };
+    };
+    const typePills = [pill('ALL', 'Todas', NODES.length, '#121214', 'Todas'), ...TYPES.map((t) => pill(t, t, counts[t], TYPE_COLOR[t], TYPE_LABEL[t]))];
+    const rows = NODES.filter(match).sort((a, b) => a.name.localeCompare(b.name, 'es')).map((n) => {
+      const sel = s.selectedId === n.id;
+      return {
+        name: n.name, nit: n.nit || '—', type: n.type, color: TYPE_COLOR[n.type],
+        bg: sel ? '#FFFFFF' : 'transparent', sh: sel ? '0 0 0 1px #D9D9D4, 0 1px 2px rgba(18,18,20,.05), 0 6px 16px -4px rgba(18,18,20,.10)' : 'none',
+        markH: sel ? '32px' : '26px', focusColor: s.focusId === n.id ? '#7A1F32' : '#B9B9BD',
+        onClick: () => { this.select(n.id); setTimeout(() => this.ensureVisible(n.id), 40); },
+        onFocus: (ev) => { ev.stopPropagation(); this.focus(n.id); },
+      };
+    });
+
+    const selN = s.selectedId != null ? BY_ID[s.selectedId] : null;
+    let sel = { color: '#6A6A72', type: '', typeLabel: '', name: '', nit: '', ownersN: '00', ownedN: '00', ownersBar: '0%', ownedBar: '0%', ownersPct: '0,00', ownedPct: '0,00', onFocus: () => {} };
+    let relSections = [];
+    if (selN) {
+      const owners = EDGES.filter((e) => e.to === selN.id), owned = EDGES.filter((e) => e.from === selN.id);
+      const so = owners.reduce((a, e) => a + pw(e.weight), 0), sd = owned.reduce((a, e) => a + pw(e.weight), 0);
+      const fmt = (v) => v.toFixed(2).replace('.', ',');
+      sel = {
+        color: TYPE_COLOR[selN.type], type: selN.type, typeLabel: TYPE_LABEL[selN.type], name: selN.name, nit: selN.nit || 'Sin identificación',
+        ownersN: String(owners.length).padStart(2, '0'), ownedN: String(owned.length).padStart(2, '0'),
+        ownersBar: Math.min(so, 100) + '%', ownedBar: Math.min(sd, 100) + '%', ownersPct: fmt(so), ownedPct: fmt(sd),
+        onFocus: () => this.focus(selN.id),
+      };
+      const item = (e, otherId) => {
+        const o = BY_ID[otherId], t = TIER[e.tier];
+        return {
+          name: o.name, type: o.type, nit: o.nit || '—', color: TYPE_COLOR[o.type],
+          fill: t.fill, fillW: e.weight ? Math.max(Math.min(pw(e.weight), 100), 1.5) + '%' : '100%',
+          pct: e.weight ? e.weight + '%' : 'sin %', pctColor: e.tier === 'ctrl' ? '#1F5E4A' : e.tier === 'missing' ? '#7A1F32' : '#121214',
+          pctSize: e.weight ? '13px' : '11px', pctWeight: e.weight ? 600 : 500,
+          onClick: () => { this.select(o.id); setTimeout(() => this.ensureVisible(o.id), 40); },
+          enter: () => this.setState({ hoverEdge: e.i }),
+          leave: () => this.setState((st) => (st.hoverEdge === e.i ? { hoverEdge: null } : null)),
+        };
+      };
+      relSections = [
+        { title: 'Dueños', subtitle: 'Quién posee a esta compañía', count: owners.length, iconBg: '#E3F0EA', iconFg: '#1F5E4A', iconPath: 'M10 4v12M5 11l5 5 5-5', empty: owners.length === 0, emptyText: 'Sin dueños registrados.', items: owners.map((e) => item(e, e.from)) },
+        { title: 'Participadas', subtitle: 'Dónde invierte esta compañía', count: owned.length, iconBg: '#F6EEDD', iconFg: '#9A6A22', iconPath: 'M10 16V4M5 9l5-5 5 5', empty: owned.length === 0, emptyText: 'Sin participaciones registradas.', items: owned.map((e) => item(e, e.to)) },
+      ];
+    }
+
+    const focusN = s.focusId != null ? BY_ID[s.focusId] : null;
+    const ch = L && L.chain;
+    const legendTiers = ['ctrl', 'sig', 'minor', 'missing'].map((k) => {
+      const t = TIER[k];
+      return {
+        stroke: t.stroke, w: t.w, dash: k === 'missing' ? '5 4' : 'none', sample: t.sample, label: t.label,
+        bs: t.bs, bd: t.bd, bg2: t.bg, fg: t.fg, fs: t.fs, bg: s.hoverTier === k ? '#F0F0ED' : 'transparent',
+        enter: () => this.setState({ hoverTier: k }),
+        leave: () => this.setState((st) => (st.hoverTier === k ? { hoverTier: null } : null)),
+      };
+    });
+
+    return {
+      stats: { companies: NODES.length, relations: EDGES.length, missing: EDGES.filter((e) => !e.weight).length },
+      statsDisplay: s.vw < 1280 ? 'none' : 'flex', labelDisplay: s.vw < 1100 ? 'none' : 'inline',
+      dirLabel: s.dir === 'TB' ? 'Vertical' : 'Horizontal', dirRot: s.dir === 'TB' ? 0 : -90,
+      toggleDir: () => this.setState((st) => ({ dir: st.dir === 'TB' ? 'LR' : 'TB' })),
+      fitAll: () => { const L2 = this._cache; if (L2) this.fit(L2.fit, 700); },
+      zoomIn: () => this.zoomBy(1.3), zoomOut: () => this.zoomBy(1 / 1.3),
+      gridCols: `${s.leftOpen ? 0 : 44}px ${s.leftOpen ? 288 : 0}px minmax(0,1fr) ${s.rightOpen ? 356 : 0}px ${s.rightOpen ? 0 : 44}px`,
+      leftRailOp: s.leftOpen ? 0 : 1, rightRailOp: s.rightOpen ? 0 : 1,
+      openLeft: () => this.setState({ leftOpen: true }), closeLeft: () => this.setState({ leftOpen: false }),
+      openRight: () => this.setState({ rightOpen: true }), closeRight: () => this.setState({ rightOpen: false }),
+      canvasRef: this.canvasRef, worldRef: this.worldRef, miniViewRef: this.miniViewRef, searchRef: this.searchRef,
+      query: s.query, onQuery: (e) => this.setState({ query: e.target.value }),
+      typeSegs, typePills, rows, listCount: rows.length,
+      nodes, edges, flows, frame, miniNodes, mini,
+      onMini: (e) => {
+        const svg = e.currentTarget; const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+        const w = pt.matrixTransform(svg.getScreenCTM().inverse()); const { W, H } = this.size(); const k = this.cam.k;
+        this.animateCam({ k, x: W / 2 - w.x * k, y: H / 2 - w.y * k }, 500);
+      },
+      onDown: (e) => {
+        if (e.button !== 0 || (e.target.closest && e.target.closest('[data-hit]'))) return;
+        cancelAnimationFrame(this._raf);
+        this._drag = { sx: e.clientX, sy: e.clientY, x: this.cam.x, y: this.cam.y, moved: false };
+        e.currentTarget.setPointerCapture(e.pointerId);
+        e.currentTarget.style.cursor = 'grabbing';
+      },
+      onMove: (e) => {
+        const d = this._drag; if (!d) return;
+        const dx = e.clientX - d.sx, dy = e.clientY - d.sy;
+        if (Math.abs(dx) + Math.abs(dy) > 3) d.moved = true;
+        this.cam = { ...this.cam, x: d.x + dx, y: d.y + dy };
+        this.apply();
+      },
+      onUp: (e) => {
+        const d = this._drag; if (!d) return;
+        this._drag = null; e.currentTarget.style.cursor = 'grab';
+        if (!d.moved && this.state.selectedId != null) this.setState({ selectedId: null });
+      },
+      hasFocus: !!focusN,
+      focus: { name: focusN ? focusN.name : '', sub: ch ? `${ch.up.size} dueño(s), ${ch.down.size} participada(s)` : '' },
+      clearFocus: () => this.setState({ focusId: null }),
+      legendOpen: s.legendOpen, legendRot: s.legendOpen ? 180 : 0,
+      toggleLegend: () => this.setState((st) => ({ legendOpen: !st.legendOpen })),
+      legendTypes: TYPES.map((t) => ({ t, title: TYPE_LABEL[t], color: TYPE_COLOR[t] })),
+      legendTiers,
+      hasSel: !!selN, noSel: !selN, sel, relSections,
+    };
+  }
+}
+</script>
+</body>
+</html>

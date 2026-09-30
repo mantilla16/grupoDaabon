@@ -36,3 +36,4 @@ data-db/*.autobak.db
 
 # Local Claude Code launch config
 .claude/
+*.zip

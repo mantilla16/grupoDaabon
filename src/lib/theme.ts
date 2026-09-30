@@ -26,11 +26,11 @@ export function tierFor(w: string | null): Tier {
 }
 
 export const TIER_STYLE: Record<Tier, { stroke: string; width: number; label: string }> = {
-  // Trazos más delgados para no dominar el grafo cuando hay muchas flechas en pantalla.
-  ctrl: { stroke: '#1F5E4A', width: 1.8, label: '≥ 50 % · control' },
-  sig: { stroke: '#9A6A22', width: 1.3, label: '5 – 50 %' },
-  minor: { stroke: '#A3A39C', width: 0.9, label: '< 5 %' },
-  missing: { stroke: '#7A1F32', width: 1.1, label: 'Sin % declarado' },
+  // Anchos del handoff §2.3 — se multiplican por --lod en CSS para compensar zoom
+  ctrl: { stroke: '#1F5E4A', width: 2.2, label: '≥ 50 % · control' },
+  sig: { stroke: '#9A6A22', width: 1.6, label: '5 – 50 %' },
+  minor: { stroke: '#A3A39C', width: 1.1, label: '< 5 %' },
+  missing: { stroke: '#7A1F32', width: 1.3, label: 'Sin % declarado' },
 }
 
 export const EASE_OUT = [0.16, 1, 0.3, 1] as const

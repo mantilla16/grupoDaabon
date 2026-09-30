@@ -2,12 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ReactFlow,
   ReactFlowProvider,
-  Background,
   Controls,
   MiniMap,
   useReactFlow,
-  BackgroundVariant,
-  MarkerType,
+  useOnViewportChange,
+  ViewportPortal,
   type Node,
   type Edge,
   type NodeMouseHandler,
@@ -21,7 +20,7 @@ import { type EntityType, type GraphData, type Ownership } from './data/graph'
 import { TYPE_COLOR, TIER_STYLE, tierFor, EASE_OUT, SPRING, type Tier } from './lib/theme'
 import { OwnershipEdge } from './components/OwnershipEdge'
 import * as api from './lib/api'
-import { layoutGraph } from './lib/layout'
+import { computeGraphLayout, NODE_WIDTH, NODE_HEIGHT } from './lib/layout'
 import { CompanyNode } from './components/CompanyNode'
 import { DetailPanel } from './components/DetailPanel'
 import { LeftPanel } from './components/LeftPanel'
@@ -33,6 +32,38 @@ import { TreeView } from './components/TreeView'
 
 const nodeTypes = { company: CompanyNode }
 const edgeTypes = { ownership: OwnershipEdge }
+
+/**
+ * §4 — Zoom semántico (Level Of Detail).
+ * En cada cambio de viewport actualizamos variables CSS sobre
+ * `.react-flow__viewport`. El CSS del nodo interpola tamaños desde estas vars
+ * → al alejar la cámara los detalles se compactan y el nombre queda visible;
+ * al acercar aparecen chip de tipo, grados y NIT.
+ */
+function LodSetter() {
+  const rafRef = useRef(0)
+  const apply = useCallback((zoom: number) => {
+    const el = document.querySelector('.react-flow__viewport') as HTMLElement | null
+    if (!el) return
+    const lod = Math.max(1, Math.min(1.9, 0.8 / zoom))
+    el.style.setProperty('--lod', lod.toFixed(3))
+    el.style.setProperty('--plod', Math.min(lod, 1.5).toFixed(3))
+    el.style.setProperty('--detail', lod > 1.06 ? '0' : '1')
+    el.style.setProperty('--minor', zoom < 0.42 ? '0' : '1')
+    el.style.setProperty('--nameMargin', lod > 1.06 ? 'auto 0' : '0')
+  }, [])
+  useOnViewportChange({
+    onChange: (v) => {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = requestAnimationFrame(() => apply(v.zoom))
+    },
+  })
+  // Aplicar valores iniciales en cuanto el componente se monta
+  useEffect(() => {
+    apply(0.82)
+  }, [apply])
+  return null
+}
 
 /** Smoothly interpolates node positions whenever the layout moves them (e.g. TB ⇄ LR). */
 function useTweenedNodes(target: Node[], duration = 750): Node[] {
@@ -208,122 +239,171 @@ function Inner() {
     return m
   }, [data])
 
-  // Build React Flow nodes+edges (with layout)
+  // Ancho/alto del canvas para el cálculo del aspecto (agrupar §1).
+  // Usamos `canvasRef` que ya declaramos arriba (para el spotlight);
+  // no lo redeclaramos.
+  const [canvasSize, setCanvasSize] = useState({ w: 1280, h: 720 })
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => {
+      setCanvasSize({ w: el.clientWidth || 1, h: el.clientHeight || 1 })
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  // §1 — Ejecutamos computeGraphLayout una sola vez por cambio real (dir + foco
+  // + datos). Devuelve posiciones, geometría de cada arista (points + labelXY)
+  // y el frame del bloque "Estructuras independientes".
+  const layoutRes = useMemo(() => {
+    // En modo foco solo se pasan los nodos/edges de la cadena. Sin foco, todos.
+    const activeIds = focusSets
+      ? data.nodes.filter((n) => focusSets.active.has(n.id)).map((n) => n.id)
+      : data.nodes.map((n) => n.id)
+    const idSet = new Set(activeIds)
+    const activeEdges = data.edges
+      .map((e, i) => ({ e, i }))
+      .filter(({ e }) => idSet.has(e.from) && idSet.has(e.to))
+    return computeGraphLayout({
+      nodeIds: activeIds,
+      edges: activeEdges.map(({ e, i }) => ({
+        index: i,
+        from: e.from,
+        to: e.to,
+        label: e.weight ? `${e.weight}%` : 'sin %',
+      })),
+      direction: layout,
+      // Solo agrupamos "independientes" cuando NO hay foco (§1.7).
+      group: focusSets == null,
+      canvasWidth: canvasSize.w,
+      canvasHeight: canvasSize.h,
+    })
+  }, [data.nodes, data.edges, layout, focusSets, canvasSize.w, canvasSize.h])
+
+  // Interacciones: hover en nodo / arista / tier de la leyenda (§6).
+  // TODO(§6): conectar `query` y `filterType` desde LeftPanel para atenuar
+  // en el grafo los nodos que no coinciden con búsqueda o filtro de tipo.
+  const [hoverId, setHoverId] = useState<number | null>(null)
+  const [hoverEdge, setHoverEdge] = useState<number | null>(null)
+  const [hoverTier, setHoverTier] = useState<Tier | null>(null)
+
+  // Set de "vecinos activos" según hover / selección
+  const activeSet = useMemo(() => {
+    const act = hoverId != null ? hoverId : (hoverEdge == null && !hoverTier ? selectedId : null)
+    const nb = new Set<number>()
+    if (act != null) {
+      nb.add(act)
+      data.edges.forEach((e) => {
+        if (e.from === act) nb.add(e.to)
+        if (e.to === act) nb.add(e.from)
+      })
+    }
+    if (hoverEdge != null) {
+      const e = data.edges[hoverEdge]
+      if (e) { nb.add(e.from); nb.add(e.to) }
+    }
+    if (hoverTier) {
+      data.edges.forEach((e) => {
+        if (tierFor(e.weight) === hoverTier) { nb.add(e.from); nb.add(e.to) }
+      })
+    }
+    return { act, nb, hoverMode: hoverId != null || hoverEdge != null || !!hoverTier }
+  }, [hoverId, hoverEdge, hoverTier, selectedId, data.edges])
+
+  // Build React Flow nodes usando el layout portado
   const rfNodes: Node[] = useMemo(() => {
-    const raw: Node[] = data.nodes.map((n) => ({
-      id: String(n.id),
-      type: 'company',
-      width: 220,
-      height: 100,
-      // In xyflow v12 the internal edge routing needs `measured` sizes upfront
-      // (nodes normally auto-measure after DOM paint, but the initial edge
-      // rendering pass runs before that). Providing them here means edges
-      // appear on first render instead of after a re-layout tick.
-      measured: { width: 220, height: 100 },
-      position: { x: 0, y: 0 },
-      data: {
-        label: n.name,
-        nit: n.nit,
-        type: n.type,
-        ownersCount: degrees.get(n.id)?.inn ?? 0,
-        ownedCount: degrees.get(n.id)?.out ?? 0,
-        dimmed: focusSets ? !focusSets.active.has(n.id) : false,
-        focused: focusedId === n.id,
-        inPath: focusSets ? focusSets.active.has(n.id) && focusedId !== n.id : false,
-        direction: layout,
-      },
-      selected: selectedId === n.id,
-      // Cuando hay foco, escondemos completamente los nodos fuera de la cadena.
-      // El fitView de abajo hace zoom sobre el subgrafo activo.
-      hidden: focusSets ? !focusSets.active.has(n.id) : false,
-    }))
-    const rfEdges: Edge[] = data.edges.map((e, i) => ({
-      id: `e-${i}`,
-      source: String(e.from),
-      target: String(e.to),
-    }))
-    const laid = layoutGraph(raw, rfEdges, layout)
-    // Stagger entrance by rank (top→bottom), with a slight sweep across each rank
-    const axis = (p: { x: number; y: number }) => (layout === 'TB' ? p.y : p.x)
-    const cross = (p: { x: number; y: number }) => (layout === 'TB' ? p.x : p.y)
-    const ranks = Array.from(new Set(laid.map((n) => Math.round(axis(n.position))))).sort((a, b) => a - b)
-    const minCross = Math.min(...laid.map((n) => cross(n.position)))
-    return laid.map((n) => ({
-      ...n,
-      data: {
-        ...n.data,
-        enterDelay: intro ? 0.45 + ranks.indexOf(Math.round(axis(n.position))) * 0.16 + (cross(n.position) - minCross) / 9000 : 0,
-      },
-    }))
-  }, [data.nodes, data.edges, layout, degrees, focusSets, focusedId, selectedId, intro])
+    const anyEmph = hoverEdge != null || !!hoverTier || activeSet.act != null
+
+    return data.nodes.map((n) => {
+      const pos = layoutRes.positions.get(String(n.id))
+      const hidden = !pos // fuera de la cadena en foco
+      let opacity = 1
+      if (!hidden) {
+        if (anyEmph && !activeSet.nb.has(n.id)) opacity = activeSet.hoverMode ? 0.3 : 0.5
+      }
+
+      return {
+        id: String(n.id),
+        type: 'company',
+        width: NODE_WIDTH,
+        height: NODE_HEIGHT,
+        measured: { width: NODE_WIDTH, height: NODE_HEIGHT },
+        position: pos ?? { x: 0, y: 0 },
+        data: {
+          label: n.name,
+          nit: n.nit,
+          type: n.type,
+          ownersCount: degrees.get(n.id)?.inn ?? 0,
+          ownedCount: degrees.get(n.id)?.out ?? 0,
+          dimmed: opacity < 1,
+          focused: focusedId === n.id,
+          inPath: focusSets ? focusSets.active.has(n.id) && focusedId !== n.id : false,
+          direction: layout,
+          rank: layoutRes.ranks.get(String(n.id)) ?? 0,
+          enterDelay: intro
+            ? 0.22 + (layoutRes.ranks.get(String(n.id)) ?? 0) * 0.115
+            : 0,
+        },
+        selected: selectedId === n.id,
+        hidden,
+        style: { opacity },
+      }
+    })
+  }, [
+    data.nodes, layoutRes, degrees, layout,
+    focusSets, focusedId, selectedId, intro,
+    activeSet, hoverEdge, hoverTier,
+  ])
 
   const displayNodes = useTweenedNodes(rfNodes)
 
   const openEdge = useCallback((index: number) => setEditingEdge({ open: true, index }), [])
 
+  // Aristas — inyectamos la geometría (points + labelXY) computada por dagre
+  // en `data`. El custom edge las convierte en path ortogonal con esquinas r=8.
   const rfEdges: Edge[] = useMemo(() => {
-    const delayOf = new Map<string, number>()
-    rfNodes.forEach((n) => delayOf.set(n.id, (n.data as { enterDelay?: number }).enterDelay ?? 0))
-
-    // Lane assignment: give each edge a per-edge lane number so edges that share
-    // the same source (fanning out) or target (fanning in) don't overlap through
-    // the same corridor. The number is symmetric around 0 → the group centers on
-    // its natural elbow, then spreads outward evenly.
-    const fromCount = new Map<number, number>()
-    const toCount = new Map<number, number>()
-    const fromIndex = new Map<string, number>()
-    const toIndex = new Map<string, number>()
-    for (const e of data.edges) {
-      const fi = fromCount.get(e.from) ?? 0
-      fromIndex.set(`${e.from}>${e.to}`, fi)
-      fromCount.set(e.from, fi + 1)
-      const ti = toCount.get(e.to) ?? 0
-      toIndex.set(`${e.from}>${e.to}`, ti)
-      toCount.set(e.to, ti + 1)
-    }
-
+    const anyEmph = hoverEdge != null || !!hoverTier || activeSet.act != null
     return data.edges.map((e, i) => {
+      const geo = layoutRes.edges.get(i)
+      const sourcePos = layoutRes.positions.get(String(e.from))
+      const targetPos = layoutRes.positions.get(String(e.to))
       const tier: Tier = tierFor(e.weight)
-      const inFocus = !!focusSets && focusSets.active.has(e.from) && focusSets.active.has(e.to)
-      const dim = !!focusSets && !inFocus
-      const stroke = inFocus ? '#7A1F32' : dim ? '#DADAD5' : TIER_STYLE[tier].stroke
-
-      // Compute lane offset: spread siblings around the center by 18px each.
-      const key = `${e.from}>${e.to}`
-      const outSize = fromCount.get(e.from) ?? 1
-      const outIdx = fromIndex.get(key) ?? 0
-      const outLane = outSize > 1 ? outIdx - (outSize - 1) / 2 : 0
-      const inSize = toCount.get(e.to) ?? 1
-      const inIdx = toIndex.get(key) ?? 0
-      const inLane = inSize > 1 ? inIdx - (inSize - 1) / 2 : 0
-      // The stronger of the two determines the lateral shift.
-      const lane = Math.abs(outLane) >= Math.abs(inLane) ? outLane : inLane
-      const laneOffset = lane * 20
-
+      // Énfasis: hover directo, hover de tier, o vecinos del nodo activo
+      let emph = false
+      if (hoverEdge != null) emph = i === hoverEdge
+      else if (hoverTier) emph = tier === hoverTier
+      else if (activeSet.act != null) emph = e.from === activeSet.act || e.to === activeSet.act
+      const dim = anyEmph && !emph
       return {
         id: `e-${i}`,
         source: String(e.from),
         target: String(e.to),
         type: 'ownership',
-        zIndex: inFocus ? 5 : 0,
-        // Igual que los nodos: en modo foco las flechas fuera de la cadena
-        // desaparecen — dejamos solo el flujo que se está inspeccionando.
-        hidden: dim,
+        zIndex: emph ? 5 : 0,
+        // NO usar el prop `hidden` de React Flow acá — cuando lo activábamos
+        // en un momento donde algún nodo aún no tenía posición (measured aún
+        // no aplicaba), la pipeline interna descartaba TODA la lista de edges
+        // y no volvía. Preferimos ocultar visualmente devolviendo null desde
+        // el componente cuando falta la geometría.
         data: {
           tier,
           weight: e.weight,
           dim,
-          focused: inFocus,
+          focused: focusedId != null,
+          emphasized: emph,
           intro,
-          delay: (delayOf.get(String(e.from)) ?? 0) + 0.2,
+          delay: intro ? 0.52 + (layoutRes.ranks.get(String(e.from)) ?? 0) * 0.115 : 0,
           index: i,
-          laneOffset,
+          direction: layout,
+          geometry: geo,
+          sourcePos,
+          targetPos,
           onOpen: openEdge,
         },
-        markerEnd: { type: MarkerType.ArrowClosed, color: stroke, width: 14, height: 14 },
       }
     })
-  }, [data.edges, focusSets, intro, rfNodes, openEdge])
+  }, [data.edges, layoutRes, focusedId, intro, layout, openEdge, activeSet, hoverEdge, hoverTier])
 
   const onNodeClick: NodeMouseHandler = useCallback((_, node) => {
     setSelectedId(Number(node.id))
@@ -339,40 +419,63 @@ function Inner() {
     setFocusedId(Number(node.id))
   }, [])
 
-  // Re-frame after the TB ⇄ LR morph finishes
+  // §5 — fitBounds: encuadre común usando el bounding box calculado por
+  // computeGraphLayout (incluye el frame de "Estructuras independientes").
+  // Padding 64 lados + 30 abajo (leyenda). Zoom máximo 1.1.
+  const fitBounds = useCallback((
+    b: { x: number; y: number; w: number; h: number },
+    duration: number,
+    mul = 1,
+  ) => {
+    const W = canvasSize.w
+    const H = canvasSize.h
+    const pad = 64
+    const kFit = Math.min((W - pad * 2) / b.w, (H - pad * 2 - 30) / b.h)
+    const k = Math.max(0.2, Math.min(kFit, 1.1)) * mul
+    const cx = b.x + b.w / 2
+    const cy = b.y + b.h / 2
+    rf.setViewport(
+      { x: W / 2 - cx * k, y: (H - 30) / 2 - cy * k, zoom: k },
+      { duration },
+    )
+  }, [canvasSize.w, canvasSize.h, rf])
+
+  // Re-frame after the TB ⇄ LR morph finishes (fit al bounds nuevo)
   const firstLayout = useRef(true)
+  const fitBoundsRef = useRef<null | (() => void)>(null)
+  useEffect(() => {
+    fitBoundsRef.current = () => fitBounds(layoutRes.bounds, 950)
+  }, [fitBounds, layoutRes])
   useEffect(() => {
     if (firstLayout.current) { firstLayout.current = false; return }
-    const t = window.setTimeout(() => rf.fitView({ padding: 0.2, duration: 700 }), 780)
+    const t = window.setTimeout(() => fitBoundsRef.current?.(), 560)
     return () => window.clearTimeout(t)
-  }, [layout, rf])
+  }, [layout])
 
-  // Centro inicial cómodo: la primera vez que hay nodos en pantalla, movemos la
-  // vista al centroide del grafo con zoom 0.9. Así arrancamos con nodos legibles
-  // (a tamaño casi natural) y el usuario panea para explorar — como Figma.
-  //
-  // IMPORTANTE: marcamos `done = true` SÍNCRONO al detectar nodos. Si en su
-  // lugar dejáramos el flag para dentro del setTimeout, cada re-render (ej.
-  // click en un nodo → cambia selectedId → cambia rfNodes) cancelaría el timer
-  // viejo y arrancaría uno nuevo, disparando setCenter DESPUÉS del click y
-  // sintiéndose como "zoom al centro al clickear cualquier casilla".
+  // §5 — Fit inicial animado: arranca a 82 % del zoom fit y se acerca al 100 %
+  // en 1500ms (easeOutQuart implícito en setViewport de xyflow).
   const initialCenterDone = useRef(false)
+  const cleanupRef = useRef<(() => void) | null>(null)
   useEffect(() => {
     if (initialCenterDone.current) return
     if (rfNodes.length === 0) return
+    if (canvasSize.w <= 1) return
     initialCenterDone.current = true
-    // Bounding box del grafo entero
-    const positions = rfNodes.map((n) => n.position)
-    const xs = positions.map((p) => p.x)
-    const ys = positions.map((p) => p.y)
-    const cx = (Math.min(...xs) + Math.max(...xs)) / 2 + 110
-    const cy = (Math.min(...ys) + Math.max(...ys)) / 2 + 50
-    // rAF asegura que React Flow terminó de montar antes de mover la vista
-    const raf = requestAnimationFrame(() => {
-      rf.setCenter(cx, cy, { zoom: 0.9, duration: 400 })
+    // Fit al bounding box completo (grafo + frame de independientes).
+    // Primero al 82 % del zoom (posición "vista amplia") y en el segundo frame
+    // animamos al 100 % en 1500ms → efecto de acercamiento sutil.
+    const raf1 = requestAnimationFrame(() => {
+      fitBounds(layoutRes.bounds, 0, 0.82)
+      const raf2 = requestAnimationFrame(() => {
+        fitBounds(layoutRes.bounds, 1500)
+      })
+      cleanupRef.current = () => cancelAnimationFrame(raf2)
     })
-    return () => cancelAnimationFrame(raf)
-  }, [rfNodes, rf])
+    return () => {
+      cancelAnimationFrame(raf1)
+      cleanupRef.current?.()
+    }
+  }, [rfNodes, canvasSize.w, layoutRes, fitBounds])
 
   // Zoom-in al entrar en foco, restauración de la vista PREVIA al salir.
   //
@@ -384,30 +487,22 @@ function Inner() {
   const firstFocusRun = useRef(true)
   useEffect(() => {
     if (firstFocusRun.current) { firstFocusRun.current = false; return }
+    // Al entrar en foco guardamos la vista actual, al salir la restauramos.
+    // Cuando hay foco activo, `layoutRes.bounds` ya está limitado al subgrafo
+    // (computeGraphLayout se llama con solo esos IDs), así que fit al bounds
+    // encuadra directamente la cadena.
     const t = window.setTimeout(() => {
       if (focusSets) {
-        // Guardamos la vista actual ANTES de mover
         savedViewportRef.current = rf.getViewport()
-        // Zoom-in animado al subgrafo
-        const ids = Array.from(focusSets.active).map((i) => ({ id: String(i) }))
-        rf.fitView({
-          nodes: ids,
-          padding: 0.22,
-          duration: 900,
-          minZoom: 0.7,
-          maxZoom: 1.6,
-        })
+        fitBounds(layoutRes.bounds, 950)
       } else {
-        // Salida del foco: restaurar la vista que había ANTES de enfocar.
-        // Nada de recomputar centroides — el estado previo es siempre correcto.
         const prev = savedViewportRef.current
-        if (prev) {
-          rf.setViewport(prev, { duration: 900 })
-        }
+        if (prev) rf.setViewport(prev, { duration: 950 })
+        else fitBounds(layoutRes.bounds, 950)
       }
     }, 60)
     return () => window.clearTimeout(t)
-  }, [focusSets, rf])
+  }, [focusSets, rf, layoutRes, fitBounds])
 
   // Handlers
   const handleFocus = (id: number) => {
@@ -426,24 +521,8 @@ function Inner() {
     return () => window.removeEventListener('keydown', onKey)
   }, [editingCompany.open, editingEdge.open, drawerOpen])
 
-  // Botón "Ajustar" — click una vez: fit-all real (para ver todo el bounding
-  // box, aunque los nodos queden chicos). Click de nuevo: vuelve al centro con
-  // zoom 0.9. Así el usuario alterna entre "vista completa" y "vista trabajable".
-  const fitToggleRef = useRef<'fit' | 'work'>('work')
-  const handleFit = () => {
-    if (fitToggleRef.current === 'work') {
-      rf.fitView({ padding: 0.08, duration: 600, minZoom: 0.2, maxZoom: 1.4 })
-      fitToggleRef.current = 'fit'
-    } else {
-      const positions = rfNodes.map((n) => n.position)
-      const xs = positions.map((p) => p.x)
-      const ys = positions.map((p) => p.y)
-      const cx = (Math.min(...xs) + Math.max(...xs)) / 2 + 110
-      const cy = (Math.min(...ys) + Math.max(...ys)) / 2 + 50
-      rf.setCenter(cx, cy, { zoom: 0.9, duration: 600 })
-      fitToggleRef.current = 'work'
-    }
-  }
+  // §5 — Botón "Ajustar": fit al bounding box en 700 ms.
+  const handleFit = () => fitBounds(layoutRes.bounds, 700)
 
   const handleAddCompany = () => setEditingCompany({ open: true, id: null })
   const handleEditCompany = (id: number) => setEditingCompany({ open: true, id })
@@ -647,7 +726,6 @@ function Inner() {
           exit={{ opacity: 0, filter: 'blur(6px)' }}
           transition={{ duration: 0.4, ease: EASE_OUT }}
         >
-          <div className="canvas-spotlight" aria-hidden="true" />
           <ReactFlow
             key={`rf-${data.nodes.length > 0 ? 'ready' : 'empty'}-${layout}`}
             nodes={displayNodes}
@@ -662,16 +740,39 @@ function Inner() {
             onEdgeClick={onEdgeClick}
             onPaneClick={onPaneClick}
             onNodeDoubleClick={onNodeDoubleClick}
-            // No usamos fitView — arrancamos con zoom 0.9 centrado en el grafo
-            // (ver initialCenter effect abajo). Es más legible que fit-all cuando
-            // el grafo es ancho: los nodos se leen y el usuario panea para ver el
-            // resto (como Figma / Miro).
-            defaultViewport={{ x: 0, y: 0, zoom: 0.9 }}
+            onNodeMouseEnter={(_, node) => setHoverId(Number(node.id))}
+            onNodeMouseLeave={() => setHoverId(null)}
+            onEdgeMouseEnter={(_, edge) => setHoverEdge(Number(edge.id.replace('e-', '')))}
+            onEdgeMouseLeave={() => setHoverEdge(null)}
+            defaultViewport={{ x: 0, y: 0, zoom: 0.82 }}
             proOptions={{ hideAttribution: true }}
             minZoom={0.2}
             maxZoom={2.5}
           >
-            <Background variant={BackgroundVariant.Dots} gap={22} size={1.1} color="#CFCFC9" />
+            {/* §4 — Zoom semántico: al cambiar el viewport, actualizamos vars CSS */}
+            <LodSetter />
+
+            {/* §1 — Marco del bloque "Estructuras independientes" */}
+            {layoutRes.frame && (
+              <ViewportPortal>
+                <div
+                  className="independent-frame"
+                  style={{
+                    position: 'absolute',
+                    left: layoutRes.frame.x,
+                    top: layoutRes.frame.y,
+                    width: layoutRes.frame.w,
+                    height: layoutRes.frame.h,
+                  }}
+                >
+                  <div className="independent-frame-head">
+                    <span>Estructuras independientes</span>
+                    <span className="independent-frame-count">{layoutRes.frame.count}</span>
+                  </div>
+                </div>
+              </ViewportPortal>
+            )}
+
             <MiniMap
               nodeColor={(n) => {
                 const type = (n.data as { type?: EntityType })?.type ?? 'Otro'
@@ -713,7 +814,7 @@ function Inner() {
           )}
           </AnimatePresence>
 
-          <Legend />
+          <Legend onHoverTier={setHoverTier} />
         </motion.div>
         )}
         </AnimatePresence>
@@ -808,7 +909,7 @@ function Inner() {
   )
 }
 
-function Legend() {
+function Legend({ onHoverTier }: { onHoverTier: (t: Tier | null) => void }) {
   const [open, setOpen] = useState(true)
   const types: { t: EntityType; title: string }[] = [
     { t: 'SAS', title: 'Sociedad por acciones simplificada' },
@@ -853,10 +954,15 @@ function Legend() {
               </div>
             </div>
             <div className="legend-block">
-              <div className="legend-title">Participación</div>
+              <div className="legend-title">Participación <span className="legend-subtitle">· pasa el cursor para resaltar</span></div>
               <div className="legend-edges">
                 {tiers.map((tier) => (
-                  <div key={tier} className="legend-edge">
+                  <div
+                    key={tier}
+                    className="legend-edge"
+                    onMouseEnter={() => onHoverTier(tier)}
+                    onMouseLeave={() => onHoverTier(null)}
+                  >
                     <svg viewBox="0 0 40 10" width="40" height="10">
                       <line x1="1" y1="5" x2="39" y2="5" stroke={TIER_STYLE[tier].stroke} strokeWidth={TIER_STYLE[tier].width}
                         strokeDasharray={tier === 'missing' ? '5 4' : undefined} strokeLinecap="round" />

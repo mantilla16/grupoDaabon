@@ -191,18 +191,26 @@ kbd {
 .app-main.left-collapsed { grid-template-columns: 44px 0 1fr 356px 0; }
 .app-main.right-collapsed { grid-template-columns: 0 288px 1fr 0 44px; }
 .app-main.left-collapsed.right-collapsed { grid-template-columns: 44px 0 1fr 0 44px; }
+/* §8 — Responsive del header (thresholds del handoff):
+   < 1280 → ocultar stats
+   < 1100 → ocultar labels de icon buttons */
 @media (max-width: 1280px) {
   .app-main { grid-template-columns: 0 260px 1fr 320px 0; }
   .app-main.left-collapsed { grid-template-columns: 44px 0 1fr 320px 0; }
   .app-main.right-collapsed { grid-template-columns: 0 260px 1fr 0 44px; }
   .header-stats { display: none; }
 }
+@media (max-width: 1100px) {
+  .icon-btn-label { display: none; }
+}
 @media (max-width: 980px) {
   .app-main, .app-main.right-collapsed { grid-template-columns: 0 250px 1fr 0 0; }
   .app-main.left-collapsed, .app-main.left-collapsed.right-collapsed { grid-template-columns: 44px 0 1fr 0 0; }
   .right-panel-wrap { display: none; }
-  .icon-btn-label { display: none; }
 }
+/* §8 — grid raíz con minmax(0,1fr) para que el header no fuerce overflow */
+.app { grid-template-columns: minmax(0, 1fr); }
+.app-header { min-width: 0; }
 
 .panel-rail--left { grid-area: rl; }
 .left-panel-wrap { grid-area: lp; }
@@ -409,15 +417,44 @@ kbd {
 .company-row.is-focused .company-row-focus { color: var(--brand); }
 .company-empty { padding: 24px 8px; color: var(--ink-4); font-size: 12.5px; text-align: center; }
 
-/* ---------- Canvas ---------- */
-.graph-canvas { background: var(--bg); overflow: hidden; }
-.canvas-spotlight {
-  position: absolute; inset: 0;
+/* ---------- Canvas (§5) — fondo liso, sin dots ni spotlight ---------- */
+.graph-canvas {
+  background: #F3F3F1;
+  overflow: hidden;
+}
+/* Kept as no-op class so existing markup doesn't need to change. */
+.canvas-spotlight { display: none; }
+
+/* §1 — Marco de "Estructuras independientes" */
+.independent-frame {
+  border: 1px dashed #C4C4BE;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.4);
   pointer-events: none;
-  z-index: 1;
-  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 40%), rgba(255, 255, 255, 0.65), transparent 70%);
-  mix-blend-mode: soft-light;
-  opacity: 0.9;
+  z-index: 0;
+}
+.independent-frame-head {
+  position: absolute;
+  left: 22px;
+  top: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #66666E;
+}
+.independent-frame-count {
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #ECECE9;
+  color: #36363B;
+  letter-spacing: 0;
+  font-weight: 500;
 }
 .react-flow { --xy-background-color: transparent; }
 .react-flow__renderer { z-index: 2; }
@@ -454,48 +491,83 @@ kbd {
 
 /* ---------- Node ---------- */
 .node {
-  width: 220px;
-  height: 100px;
-  padding: 12px 14px 12px 16px;
+  width: 224px;
+  height: 96px;
+  padding: 10px 12px 10px 15px;
   background: var(--surface);
   border-radius: 10px;
-  border: 1px solid var(--hair);
+  border: 1px solid #E6E6E2;
   box-shadow: var(--sh-1);
   position: relative;
   display: flex; flex-direction: column;
-  gap: 4px;
-  transition: box-shadow 0.3s var(--ease-out), border-color 0.3s var(--ease-out);
+  gap: 3px;
+  transition: box-shadow 0.3s var(--ease-out), border-color 0.3s var(--ease-out), opacity 0.25s var(--ease-out);
   will-change: transform, opacity;
 }
-.node:hover { box-shadow: var(--sh-2); border-color: var(--rule); }
+.node:hover {
+  border-color: #C4C4BE;
+  box-shadow: 0 2px 4px rgba(18, 18, 20, 0.05), 0 14px 28px -8px rgba(18, 18, 20, 0.18);
+}
 .node-rail {
   position: absolute;
   left: -1px; top: 12px; bottom: 12px;
   width: 3px;
   border-radius: 0 3px 3px 0;
   background: var(--tc);
-  transition: top 0.35s var(--ease-out), bottom 0.35s var(--ease-out);
+  transition: top 0.35s var(--ease-out), bottom 0.35s var(--ease-out), width 0.35s var(--ease-out);
 }
-.node:hover .node-rail, .node.is-selected .node-rail, .node.is-focused .node-rail { top: -1px; bottom: -1px; border-radius: 10px 0 0 10px; width: 4px; }
-.node-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.node:hover .node-rail,
+.node.is-selected .node-rail,
+.node.is-focused .node-rail {
+  top: -1px; bottom: -1px;
+  border-radius: 10px 0 0 10px;
+  width: 4px;
+}
+
+/* §4 — Zoom semántico (LOD)
+   Al alejar el zoom (0.45 fit-all) el nombre debe leerse a ~11-12px en pantalla.
+   Al acercar, se muestran chip de tipo / grados / NIT y el nombre vuelve al top.
+   Las variables --lod / --detail / --minor / --nameMargin se setean en
+   .react-flow__viewport desde App.tsx (useOnViewportChange).                 */
+.node-top {
+  display: flex; align-items: center; justify-content: space-between;
+  height: calc(19px * var(--detail, 1));
+  opacity: var(--detail, 1);
+  overflow: hidden;
+  transition: height 0.3s var(--ease-out), opacity 0.3s var(--ease-out);
+}
 .node-type {
   font-size: 10px; font-weight: 650; letter-spacing: 0.06em;
   color: var(--tc);
   padding: 2px 6px;
   border-radius: 4px;
   background: color-mix(in srgb, var(--tc) 9%, transparent);
+  white-space: nowrap;
 }
 .node-deg { display: inline-flex; gap: 8px; font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-4); }
 .node-deg > span { display: inline-flex; align-items: center; gap: 2px; }
 .node-deg svg { width: 10px; height: 10px; }
 .node-name {
-  font-size: 13.5px; font-weight: 550; line-height: 1.25;
+  font-size: calc(13.5px * var(--lod, 1));
+  font-weight: 550;
+  line-height: 1.22;
   letter-spacing: -0.015em;
   color: var(--ink);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   overflow: hidden;
+  margin: var(--nameMargin, 0);
+  transition: font-size 0.3s var(--ease-out), margin 0.3s var(--ease-out);
 }
-.node-nit { margin-top: auto; font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.node-nit {
+  margin-top: auto;
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  color: #8E8E95;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  height: calc(15px * var(--detail, 1));
+  opacity: var(--detail, 1);
+  transition: height 0.3s var(--ease-out), opacity 0.3s var(--ease-out);
+}
 
 .node.is-selected { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink), var(--sh-3); }
 .node.is-focused { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand), 0 18px 40px -12px rgba(122, 31, 50, 0.45); }
@@ -531,8 +603,25 @@ kbd {
 }
 .own-edge.is-intro { animation: edge-fade 0.3s var(--ease-out) both; }
 @keyframes edge-fade { from { opacity: 0; } to { opacity: 1; } }
-.react-flow__edge:hover .own-edge:not(.is-dim) { stroke-width: 3.2px !important; }
+.own-edge.is-dim { stroke-opacity: 0.12 !important; }
+.own-edge-arrow { transition: opacity 0.3s var(--ease-out); pointer-events: none; }
+.own-edge.is-dim + .own-edge-arrow,
+.own-edge.is-dim ~ .own-edge-arrow { opacity: 0.12; }
 .edge-draw { pointer-events: none; }
+
+/* §6 — Flujo animado sobre aristas resaltadas */
+.own-edge-flow {
+  fill: none;
+  stroke-linecap: round;
+  animation: own-edge-flow 0.9s linear infinite;
+  pointer-events: none;
+}
+@keyframes own-edge-flow {
+  to { stroke-dashoffset: -14; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .own-edge-flow { animation: none; }
+}
 
 /* Percentage pills */
 .edge-pill-anchor { position: absolute; pointer-events: all; }
@@ -562,12 +651,13 @@ kbd {
   background: #FFFFFF; color: #7A1F32; border-color: #D9A7B3; border-style: dashed;
   font-style: italic;
 }
-/* Focus: keep tier color, add a ring for prominence */
-.edge-pill.is-focused {
-  box-shadow: 0 0 0 3px rgba(122,31,50,0.18), 0 4px 12px -3px rgba(18,18,20,0.25);
-  transform: scale(1.02);
-  z-index: 3;
+/* §2.4 — Pill resaltado (hover directo / tier / vecinos del nodo activo) */
+.edge-pill.is-emph {
+  box-shadow: 0 0 0 3px rgba(122, 31, 50, 0.14), 0 6px 14px -4px rgba(18, 18, 20, 0.28);
+  z-index: 5;
 }
+/* Pills minor se ocultan al alejar (variable seteada por LodSetter) */
+.edge-pill.is-minor { opacity: var(--minor, 1); }
 .edge-pill-anchor:hover .edge-pill { box-shadow: var(--sh-2); z-index: 4; }
 .edge-pill-static { height: 18px; font-size: 10px; padding: 0 5px; box-shadow: none; cursor: default; }
 
